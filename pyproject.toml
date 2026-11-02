@@ -1,0 +1,30 @@
+[project]
+name = "cryptanalysis-bot"
+version = "0.1.0"
+description = "Telegram cryptanalysis bot: auto-decode chains + classic cipher breaking (own implementation)"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.13",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "redis>=5.1",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "python-json-logger>=2.0.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "bandit>=1.7",
+    "ruff>=0.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
