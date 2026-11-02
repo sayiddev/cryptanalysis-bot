@@ -1,3 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+"app.core.data" = ["*.json", "*.txt"]
+
 [project]
 name = "cryptanalysis-bot"
 version = "0.1.0"
