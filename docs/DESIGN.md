@@ -49,12 +49,16 @@ Telegram API  ──────────────────────
 | Servis | Vazifa | Imtiyoz |
 |---|---|---|
 | `nginx` | TLS termination, webhook endpoint | non-root |
-| `bot` | aiogram 3, webhook handler, validatsiya, rate-limit | non-root, read-only FS |
-| `worker` | **ishonchsiz** cryptanalysis ishlarini bajaradi | non-root, read-only FS, CPU/mem/time limit, tarmoqsiz (`network_mode: none` imkon qadar) |
-| `redis` | job navbati | non-root |
-| `db` | Postgres (prod) / SQLite (dev) — foydalanuvchi tarixi, audit log | non-root |
+| `bot` | aiogram 3, webhook handler, validatsiya, rate-limit, job'larni ishga tushiradi | non-root, read-only FS |
+| `db` | SQLite (dev) / Postgres (prod) — foydalanuvchi tarixi, audit log | non-root |
 
-Bot va worker **bitta Python processda emas** — chunki worker ishonchsiz/CPU-talab qiladigan kodni bajaradi (hill-climbing minglab iteratsiya qiladi) va u alohida ajratilgan bo'lishi shart (baseline-12).
+**Worker izolyatsiyasi (MVP, v1):** har bir cryptanalysis job (`app/worker/run_job.py`) `bot` konteyneri ichida **alohida OS processi** sifatida ishga tushiriladi (`asyncio.create_subprocess_exec`), umumiy kod/holat ulashilmaydi:
+
+- Subprocess ichida `resource.setrlimit` orqali CPU vaqti (`RLIMIT_CPU`) va xotira (`RLIMIT_AS`) cheklanadi (Linux konteynerda; Windows'da dev paytida bu limit o'tkazib yuboriladi, faqat wall-clock timeout ishlaydi).
+- Bot tomonida `asyncio.wait_for(..., timeout=JOB_TIMEOUT_SECONDS)` — qo'shimcha xavfsizlik qatlami, subprocess javob bermasa `kill()` qilinadi.
+- Subprocessga kirish/chiqish faqat JSON orqali (stdin/stdout) — `eval`/`exec` yo'q, `shell=True` yo'q.
+
+*Keyingi bosqich (v2, vaqt imkon bersa):* bu subprocess modelini alohida `worker` konteyneriga va Redis job-navbatiga ko'chirish — arxitektura shunga tayyor (job interfeysi allaqachon "input JSON → output JSON" shaklida ajratilgan), lekin 2 kunlik MVP doirasida process-darajasidagi izolyatsiya baseline-12 talabini (CPU/vaqt/xotira limiti, ishonchsiz kod alohida) qondiradi.
 
 ## 3. Core engine (sof Python, Telegram'dan mustaqil)
 

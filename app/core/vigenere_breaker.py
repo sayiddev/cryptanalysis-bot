@@ -44,7 +44,7 @@ def kasiski_examination(letters: str, seq_len: int = 3) -> list[int]:
         positions[letters[i : i + seq_len]].append(i)
 
     distances = []
-    for seq, occurrences in positions.items():
+    for occurrences in positions.values():
         if len(occurrences) < 2:
             continue
         for i in range(1, len(occurrences)):

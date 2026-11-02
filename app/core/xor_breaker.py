@@ -24,7 +24,7 @@ class XorResult:
 def hamming_distance(a: bytes, b: bytes) -> int:
     if len(a) != len(b):
         raise ValueError("hamming_distance requires equal-length buffers")
-    return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
+    return sum((x ^ y).bit_count() for x, y in zip(a, b))
 
 
 def _normalized_distance(data: bytes, key_len: int, max_blocks: int = 20) -> float | None:

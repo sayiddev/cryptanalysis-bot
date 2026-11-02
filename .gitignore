@@ -1,3 +1,6 @@
+deploy/certs/*.pem
+deploy/certs/*.key
+data/
 __pycache__/
 *.pyc
 .venv/
