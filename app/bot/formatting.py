@@ -171,6 +171,74 @@ def xor_encrypted(key: str, ciphertext_hex: str) -> str:
     )
 
 
+WORDLIST_FILES = [
+    {
+        "key": "wl_top10k",
+        "label": "🥇 Top 10 000",
+        "name": "10k-most-common.txt",
+        "size": "73 KB",
+        "description": "Eng ko'p ishlatiladigan 10 000 parol — tezkor CTF uchun",
+        "url": (
+            "https://raw.githubusercontent.com/danielmiessler/SecLists/"
+            "master/Passwords/Common-Credentials/10k-most-common.txt"
+        ),
+    },
+    {
+        "key": "wl_ncsc100k",
+        "label": "🥈 NCSC Top 100 000",
+        "name": "100k-most-used-passwords-NCSC.txt",
+        "size": "816 KB",
+        "description": "Buyuk Britaniya NCSC rasmiy nashr etgan 100 000 eng zaif parol",
+        "url": (
+            "https://raw.githubusercontent.com/danielmiessler/SecLists/"
+            "master/Passwords/Common-Credentials/100k-most-used-passwords-NCSC.txt"
+        ),
+    },
+    {
+        "key": "wl_pwdb1m",
+        "label": "🥉 Pwdb Top 1 000 000",
+        "name": "Pwdb_top-1000000.txt",
+        "size": "8.3 MB",
+        "description": "Pwdb loyihasining 1 million eng ko'p uchraydigan paroli",
+        "url": (
+            "https://raw.githubusercontent.com/danielmiessler/SecLists/"
+            "master/Passwords/Common-Credentials/Pwdb_top-1000000.txt"
+        ),
+    },
+    {
+        "key": "wl_worst500",
+        "label": "4️⃣ Eng yomon 500",
+        "name": "500-worst-passwords.txt",
+        "size": "3.4 KB",
+        "description": "Tarixdagi eng ko'p tanqid qilingan 500 ta zaif parol",
+        "url": (
+            "https://raw.githubusercontent.com/danielmiessler/SecLists/"
+            "master/Passwords/Common-Credentials/500-worst-passwords.txt"
+        ),
+    },
+    {
+        "key": "wl_top10m",
+        "label": "5️⃣ Top 10 000 000",
+        "name": "xato-net-10-million-passwords.txt",
+        "size": "46 MB",
+        "description": "xato.net'ning to'liq 10 milliondan iborat parollar bazasi",
+        "url": (
+            "https://raw.githubusercontent.com/danielmiessler/SecLists/"
+            "master/Passwords/Common-Credentials/xato-net-10-million-passwords.txt"
+        ),
+    },
+]
+
+WORDLISTS_TEXT = """\
+📋 <b>Dunyodagi top 5 wordlist</b>
+
+Har biri SecLists (xavfsizlik tadqiqotchilari eng ko'p ishlatadigan ochiq \
+to'plam) dan — tugmani bosing, fayl to'g'ridan-to'g'ri shu yerga yuboriladi.
+
+⚠️ <i>Faqat ruxsat etilgan pentest, CTF yoki xavfsizlik tadqiqoti uchun ishlating.</i>
+"""
+
+
 def substitution_encrypted(ciphertext: str) -> str:
     return (
         f"✉️ <b>Tasodifiy substitution bilan shifrlandi</b>\n"

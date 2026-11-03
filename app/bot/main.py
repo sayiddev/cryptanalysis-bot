@@ -36,6 +36,7 @@ BOT_COMMANDS = [
     BotCommand(command="sha1", description="SHA-1 hash hisoblash"),
     BotCommand(command="md5", description="MD5 hash hisoblash"),
     BotCommand(command="base64_encode", description="Base64 formatiga kodlash"),
+    BotCommand(command="wordlists", description="Top 5 parol wordlist'ini yuklab olish"),
 ]
 
 logging.basicConfig(

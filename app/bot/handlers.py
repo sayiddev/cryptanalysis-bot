@@ -24,6 +24,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    URLInputFile,
     WebAppInfo,
 )
 
@@ -34,6 +35,7 @@ from app.bot.keyboards import (
     cancel_keyboard,
     encrypt_menu_keyboard,
     main_menu_keyboard,
+    wordlists_menu_keyboard,
 )
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.states import AwaitingInput
@@ -481,6 +483,15 @@ async def handle_base64_encode(message: Message, command: CommandObject) -> None
     await _process_base64_encode(message, text)
 
 
+@router.message(Command("wordlists"))
+async def handle_wordlists_command(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.reply(
+        formatting.WORDLISTS_TEXT,
+        reply_markup=wordlists_menu_keyboard(formatting.WORDLIST_FILES),
+    )
+
+
 @router.message(Command("stats"))
 async def handle_stats(message: Message) -> None:
     if not security.is_admin(message.from_user.id):
@@ -525,6 +536,41 @@ async def handle_menu_help(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
     await callback.answer()
+
+
+@router.callback_query(F.data == "menu:wordlists")
+async def handle_menu_wordlists(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text(
+        formatting.WORDLISTS_TEXT,
+        reply_markup=wordlists_menu_keyboard(formatting.WORDLIST_FILES),
+    )
+    await callback.answer()
+
+
+_WORDLISTS_BY_KEY = {wl["key"]: wl for wl in formatting.WORDLIST_FILES}
+
+
+@router.callback_query(F.data.startswith("getfile:"))
+async def handle_get_wordlist_file(callback: CallbackQuery) -> None:
+    key = callback.data.split(":", 1)[1]
+    wordlist = _WORDLISTS_BY_KEY.get(key)
+    if wordlist is None:
+        await callback.answer("Topilmadi.")
+        return
+    if await _rate_limited(callback.message):
+        await callback.answer()
+        return
+
+    await callback.answer(f"Yuklanmoqda... ({wordlist['size']})")
+    try:
+        await callback.message.answer_document(
+            URLInputFile(wordlist["url"], filename=wordlist["name"]),
+            caption=f"📋 {wordlist['name']}\n{wordlist['description']}\n\nManba: SecLists (MIT license)",
+        )
+    except Exception:
+        logger.exception("failed to send wordlist file %s", key)
+        await callback.message.answer(GENERIC_ERROR_MESSAGE)
 
 
 @router.callback_query(F.data.startswith("action:"))
