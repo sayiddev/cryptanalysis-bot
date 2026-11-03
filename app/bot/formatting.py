@@ -60,6 +60,18 @@ _DETAIL_TEXTS = {
         "<b>Foydalanish:</b>\n<code>/substitution &lt;shifrmatn&gt;</code>\n\n"
         "<b>Misol:</b>\n<code>Rth tzdrale ay wlegraoljgte drlhrwthd fjwn rtacdjqid</code>"
     ),
+    "encrypt": (
+        "✉️ <b>Shifrlash (buzish emas — yaratish)</b>\n\n"
+        "O'z matningizni shifrlab, keyin yuqoridagi buyruqlar bilan botning "
+        "uni kalitsiz qanday buzishini sinab ko'ring.\n\n"
+        "<code>/caesar &lt;shift&gt; &lt;matn&gt;</code>\n"
+        "<code>/caesar 3 hello world</code>\n\n"
+        "<code>/vigenere_encrypt &lt;kalit&gt; &lt;matn&gt;</code>\n"
+        "<code>/vigenere_encrypt LION the quick brown fox</code>\n\n"
+        "<code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>\n"
+        "<code>/xor_encrypt LION the quick brown fox</code> → natija <code>/xor</code>ga beriladi\n\n"
+        "<code>/substitution_encrypt &lt;matn&gt;</code> — tasodifiy almashtirish bilan shifrlaydi"
+    ),
 }
 
 
@@ -96,3 +108,34 @@ def vigenere_result(key: str, plaintext: str) -> str:
 
 def substitution_result(plaintext: str) -> str:
     return f"🔤 <b>Natija:</b>\n———————————\n<code>{escape(plaintext)}</code>"
+
+
+def caesar_encrypted(shift: int, ciphertext: str) -> str:
+    return (
+        f"✉️ <b>Caesar shifrlandi</b> <i>(shift={shift})</i>\n"
+        f"———————————\n<code>{escape(ciphertext)}</code>"
+    )
+
+
+def vigenere_encrypted(key: str, ciphertext: str) -> str:
+    return (
+        f"✉️ <b>Vigenère bilan shifrlandi</b> <i>(kalit: {escape(key)})</i>\n"
+        f"———————————\n<code>{escape(ciphertext)}</code>\n\n"
+        f"👉 Buzish uchun: <code>/vigenere {escape(ciphertext)}</code>"
+    )
+
+
+def xor_encrypted(key: str, ciphertext_hex: str) -> str:
+    return (
+        f"✉️ <b>XOR bilan shifrlandi</b> <i>(kalit: {escape(key)})</i>\n"
+        f"———————————\n<code>{ciphertext_hex}</code>\n\n"
+        f"👉 Buzish uchun: <code>/xor {ciphertext_hex}</code>"
+    )
+
+
+def substitution_encrypted(ciphertext: str) -> str:
+    return (
+        f"✉️ <b>Tasodifiy substitution bilan shifrlandi</b>\n"
+        f"———————————\n<code>{escape(ciphertext)}</code>\n\n"
+        f"👉 Buzish uchun: <code>/substitution {escape(ciphertext)}</code>"
+    )

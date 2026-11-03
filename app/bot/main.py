@@ -26,6 +26,10 @@ BOT_COMMANDS = [
     BotCommand(command="xor", description="Takrorlanuvchi kalitli XOR'ni buzish"),
     BotCommand(command="vigenere", description="Vigenère shifrini buzish"),
     BotCommand(command="substitution", description="Harf almashtirishni buzish"),
+    BotCommand(command="caesar", description="Caesar shifri bilan shifrlash"),
+    BotCommand(command="vigenere_encrypt", description="Vigenère bilan shifrlash"),
+    BotCommand(command="xor_encrypt", description="XOR bilan shifrlash"),
+    BotCommand(command="substitution_encrypt", description="Tasodifiy substitution bilan shifrlash"),
 ]
 
 logging.basicConfig(

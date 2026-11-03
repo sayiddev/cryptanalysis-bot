@@ -9,6 +9,7 @@ MENU_BUTTONS = [
     ("🔑 XOR", "menu:xor"),
     ("📜 Vigenère", "menu:vigenere"),
     ("🔤 Substitution", "menu:substitution"),
+    ("✉️ Shifrlash", "menu:encrypt"),
 ]
 
 

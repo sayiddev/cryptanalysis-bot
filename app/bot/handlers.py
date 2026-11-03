@@ -16,6 +16,7 @@ from app.bot.config import settings
 from app.bot.keyboards import back_to_menu_keyboard, main_menu_keyboard
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.validation import validate_hex_input, validate_text_input
+from app.core import classical_ciphers
 from app.worker import client as worker_client
 
 logger = logging.getLogger("bot.handlers")
@@ -206,6 +207,100 @@ async def handle_substitution(message: Message, command: CommandObject) -> None:
         return
 
     await message.reply(formatting.substitution_result(outcome.result["plaintext"]))
+
+
+def _split_first_token(args: str) -> tuple[str, str] | None:
+    parts = args.split(maxsplit=1)
+    if len(parts) != 2:
+        return None
+    return parts[0], parts[1]
+
+
+@router.message(Command("caesar"))
+async def handle_caesar(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    args = _require_argument(command)
+    split = _split_first_token(args) if args else None
+    if split is None:
+        await _reply_missing_argument(message, "encrypt")
+        return
+    shift_str, text = split
+
+    try:
+        shift = int(shift_str)
+    except ValueError:
+        await _reply_validation_error(message, "caesar", "shift butun son bo'lishi kerak")
+        return
+
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "caesar", validation.reason)
+        return
+
+    ciphertext = classical_ciphers.caesar_encrypt(text, shift)
+    await message.reply(formatting.caesar_encrypted(shift, ciphertext))
+
+
+@router.message(Command("vigenere_encrypt"))
+async def handle_vigenere_encrypt(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    args = _require_argument(command)
+    split = _split_first_token(args) if args else None
+    if split is None:
+        await _reply_missing_argument(message, "encrypt")
+        return
+    key, text = split
+
+    if not key.isalpha():
+        await _reply_validation_error(message, "vigenere_encrypt", "kalit faqat harflardan iborat bo'lishi kerak")
+        return
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "vigenere_encrypt", validation.reason)
+        return
+
+    ciphertext = classical_ciphers.vigenere_encrypt(text, key)
+    await message.reply(formatting.vigenere_encrypted(key, ciphertext))
+
+
+@router.message(Command("xor_encrypt"))
+async def handle_xor_encrypt(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    args = _require_argument(command)
+    split = _split_first_token(args) if args else None
+    if split is None:
+        await _reply_missing_argument(message, "encrypt")
+        return
+    key, text = split
+
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "xor_encrypt", validation.reason)
+        return
+
+    ciphertext_hex = classical_ciphers.xor_encrypt_hex(text, key)
+    await message.reply(formatting.xor_encrypted(key, ciphertext_hex))
+
+
+@router.message(Command("substitution_encrypt"))
+async def handle_substitution_encrypt(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "encrypt")
+        return
+
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "substitution_encrypt", validation.reason)
+        return
+
+    ciphertext, _mapping = classical_ciphers.random_substitution_encrypt(text)
+    await message.reply(formatting.substitution_encrypted(ciphertext))
 
 
 @router.message(Command("stats"))
