@@ -435,3 +435,17 @@ async def handle_pending_action_input(message: Message, state: FSMContext) -> No
         await message.reply(GENERIC_ERROR_MESSAGE)
         return
     await handler(message, message.text.strip())
+
+
+@router.message(F.text, ~F.text.startswith("/"))
+async def handle_stray_text(message: Message) -> None:
+    """Any plain text with no pending action and no matching command.
+
+    Without this, such messages are silently dropped (no handler matches),
+    which looks like the bot ignoring the user. Registered last so it never
+    shadows a real command or an active AwaitingInput state.
+    """
+    await message.reply(
+        "🤔 Qaysi amalni bajarishni bilmadim. Tugmalardan birini tanlang:",
+        reply_markup=main_menu_keyboard(),
+    )
