@@ -30,7 +30,7 @@ from app.bot.keyboards import (
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.states import AwaitingInput
 from app.bot.validation import validate_hex_input, validate_text_input
-from app.core import classical_ciphers
+from app.core import classical_ciphers, hash_tools
 from app.worker import client as worker_client
 
 logger = logging.getLogger("bot.handlers")
@@ -243,6 +243,50 @@ async def _process_substitution_encrypt(message: Message, text: str) -> None:
     )
 
 
+async def _process_sha256(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "sha256", validation.reason)
+        return
+    await message.reply(
+        formatting.hash_result("SHA-256", hash_tools.sha256_hex(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_sha1(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "sha1", validation.reason)
+        return
+    await message.reply(
+        formatting.hash_result("SHA-1", hash_tools.sha1_hex(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_md5(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "md5", validation.reason)
+        return
+    await message.reply(
+        formatting.hash_result("MD5", hash_tools.md5_hex(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_base64_encode(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "base64_encode", validation.reason)
+        return
+    await message.reply(
+        formatting.base64_encoded(hash_tools.base64_encode(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
 _ACTIONS = {
     "decode": _process_decode,
     "xor": _process_xor,
@@ -252,6 +296,10 @@ _ACTIONS = {
     "vigenere_encrypt": _process_vigenere_encrypt,
     "xor_encrypt": _process_xor_encrypt,
     "substitution_encrypt": _process_substitution_encrypt,
+    "sha256": _process_sha256,
+    "sha1": _process_sha1,
+    "md5": _process_md5,
+    "base64_encode": _process_base64_encode,
 }
 
 
@@ -357,6 +405,50 @@ async def handle_substitution_encrypt(message: Message, command: CommandObject) 
         await _reply_missing_argument(message, "substitution_encrypt")
         return
     await _process_substitution_encrypt(message, text)
+
+
+@router.message(Command("sha256"))
+async def handle_sha256(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "sha256")
+        return
+    await _process_sha256(message, text)
+
+
+@router.message(Command("sha1"))
+async def handle_sha1(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "sha1")
+        return
+    await _process_sha1(message, text)
+
+
+@router.message(Command("md5"))
+async def handle_md5(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "md5")
+        return
+    await _process_md5(message, text)
+
+
+@router.message(Command("base64_encode"))
+async def handle_base64_encode(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "base64_encode")
+        return
+    await _process_base64_encode(message, text)
 
 
 @router.message(Command("stats"))

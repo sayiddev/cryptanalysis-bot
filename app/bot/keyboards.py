@@ -20,6 +20,10 @@ ENCRYPT_BUTTONS = [
     ("📜 Vigenère", "action:vigenere_encrypt"),
     ("🔑 XOR", "action:xor_encrypt"),
     ("🔤 Substitution", "action:substitution_encrypt"),
+    ("#️⃣ SHA-256", "action:sha256"),
+    ("#️⃣ SHA-1", "action:sha1"),
+    ("#️⃣ MD5", "action:md5"),
+    ("🔡 Base64", "action:base64_encode"),
 ]
 
 

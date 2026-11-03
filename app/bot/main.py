@@ -31,6 +31,10 @@ BOT_COMMANDS = [
     BotCommand(command="vigenere_encrypt", description="Vigenère bilan shifrlash"),
     BotCommand(command="xor_encrypt", description="XOR bilan shifrlash"),
     BotCommand(command="substitution_encrypt", description="Tasodifiy substitution bilan shifrlash"),
+    BotCommand(command="sha256", description="SHA-256 hash hisoblash"),
+    BotCommand(command="sha1", description="SHA-1 hash hisoblash"),
+    BotCommand(command="md5", description="MD5 hash hisoblash"),
+    BotCommand(command="base64_encode", description="Base64 formatiga kodlash"),
 ]
 
 logging.basicConfig(

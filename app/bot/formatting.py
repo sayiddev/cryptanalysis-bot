@@ -33,6 +33,7 @@ HELP_TEXT = """\
 <code>/vigenere_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
 <code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
 <code>/substitution_encrypt &lt;matn&gt;</code>
+<code>/sha256 /sha1 /md5 /base64_encode &lt;matn&gt;</code>
 
 Har bir so'rovga vaqt/CPU limiti qo'yilgan.
 """
@@ -76,7 +77,10 @@ _DETAIL_TEXTS = {
         "<code>/vigenere_encrypt LION the quick brown fox</code>\n\n"
         "<code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>\n"
         "<code>/xor_encrypt LION the quick brown fox</code> → natija <code>/xor</code>ga beriladi\n\n"
-        "<code>/substitution_encrypt &lt;matn&gt;</code> — tasodifiy almashtirish bilan shifrlaydi"
+        "<code>/substitution_encrypt &lt;matn&gt;</code> — tasodifiy almashtirish bilan shifrlaydi\n\n"
+        "<b>Hash / kodlash:</b>\n"
+        "<code>/sha256 &lt;matn&gt;</code>, <code>/sha1 &lt;matn&gt;</code>, "
+        "<code>/md5 &lt;matn&gt;</code>, <code>/base64_encode &lt;matn&gt;</code>"
     ),
 }
 
@@ -106,6 +110,10 @@ ACTION_PROMPTS = {
         "<code>kalit matn</code> formatida yuboring.\nMisol: <code>LION the quick brown fox</code> 👇"
     ),
     "substitution_encrypt": "🔤 <b>Tasodifiy substitution bilan shifrlash</b>\n\nMatningizni yuboring 👇",
+    "sha256": "#️⃣ <b>SHA-256 hash</b>\n\nMatningizni yuboring 👇",
+    "sha1": "#️⃣ <b>SHA-1 hash</b>\n\nMatningizni yuboring 👇",
+    "md5": "#️⃣ <b>MD5 hash</b>\n\nMatningizni yuboring 👇",
+    "base64_encode": "🔡 <b>Base64 kodlash</b>\n\nMatningizni yuboring 👇",
 }
 
 
@@ -168,4 +176,15 @@ def substitution_encrypted(ciphertext: str) -> str:
         f"✉️ <b>Tasodifiy substitution bilan shifrlandi</b>\n"
         f"———————————\n<code>{escape(ciphertext)}</code>\n\n"
         f"👉 Buzish uchun: <code>/substitution {escape(ciphertext)}</code>"
+    )
+
+
+def hash_result(label: str, digest: str) -> str:
+    return f"#️⃣ <b>{escape(label)}</b>\n———————————\n<code>{digest}</code>"
+
+
+def base64_encoded(encoded: str) -> str:
+    return (
+        f"🔡 <b>Base64</b>\n———————————\n<code>{escape(encoded)}</code>\n\n"
+        f"👉 Ochish uchun: <code>/decode {escape(encoded)}</code>"
     )
