@@ -6,7 +6,7 @@ from __future__ import annotations
 from html import escape
 
 WELCOME_TEXT = """\
-🔓 <b>Cryptanalysis Bot</b>
+🔓 <b>DecodeWizard Bot</b>
 
 Men ikki narsani qilaman:
 
@@ -20,7 +20,7 @@ Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring - buyru
 """
 
 HELP_TEXT = """\
-🔓 <b>Cryptanalysis Bot - buyruqlar</b>
+🔓 <b>DecodeWizard Bot - buyruqlar</b>
 
 <b>🔨 Buzish</b>
 <code>/decode &lt;matn&gt;</code> - base64 / hex / url / binary zanjirini aniqlab ochadi
