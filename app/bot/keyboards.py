@@ -47,6 +47,9 @@ def wordlists_menu_keyboard(wordlists: list[dict]) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=wl["label"], callback_data=f"getfile:{wl['key']}")]
         for wl in wordlists
     ]
+    rows.append(
+        [InlineKeyboardButton(text="🎯 Shaxsiy wordlist yasash", callback_data="action:personal_wordlist")]
+    )
     rows.append([InlineKeyboardButton(text="⬅️ Menyu", callback_data="menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

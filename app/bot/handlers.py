@@ -20,6 +20,7 @@ from aiogram import F, Router
 from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
+    BufferedInputFile,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -40,7 +41,7 @@ from app.bot.keyboards import (
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.states import AwaitingInput
 from app.bot.validation import validate_hex_input, validate_text_input
-from app.core import classical_ciphers, hash_tools
+from app.core import classical_ciphers, hash_tools, wordlist_gen
 from app.worker import client as worker_client
 
 logger = logging.getLogger("bot.handlers")
@@ -319,6 +320,36 @@ async def _process_base64_encode(message: Message, text: str) -> None:
     )
 
 
+async def _process_personal_wordlist(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "personal_wordlist", validation.reason)
+        return
+
+    tokens = [t.strip() for t in text.split(",") if t.strip()]
+    years = [t for t in tokens if t.isdigit() and len(t) == 4]
+    words = [t for t in tokens if t not in years]
+
+    if not words:
+        await _reply_validation_error(
+            message, "personal_wordlist", "kamida bitta so'z (ism) kiriting"
+        )
+        return
+
+    candidates = wordlist_gen.generate_personal_wordlist(words, years)
+    content = "\n".join(candidates).encode("utf-8")
+
+    # THREAT_MODEL.md: never persist the personal input itself, only that
+    # this action happened (data minimization + audit trail).
+    await db.record_job(message.from_user.id, "personal_wordlist", "ok")
+
+    await message.reply_document(
+        BufferedInputFile(content, filename="shaxsiy_wordlist.txt"),
+        caption=f"🎯 {len(candidates)} ta so'z generatsiya qilindi.",
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
 _ACTIONS = {
     "decode": _process_decode,
     "xor": _process_xor,
@@ -332,6 +363,7 @@ _ACTIONS = {
     "sha1": _process_sha1,
     "md5": _process_md5,
     "base64_encode": _process_base64_encode,
+    "personal_wordlist": _process_personal_wordlist,
 }
 
 
@@ -490,6 +522,17 @@ async def handle_wordlists_command(message: Message, state: FSMContext) -> None:
         formatting.WORDLISTS_TEXT,
         reply_markup=wordlists_menu_keyboard(formatting.WORDLIST_FILES),
     )
+
+
+@router.message(Command("personal_wordlist"))
+async def handle_personal_wordlist_command(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "personal_wordlist")
+        return
+    await _process_personal_wordlist(message, text)
 
 
 @router.message(Command("stats"))

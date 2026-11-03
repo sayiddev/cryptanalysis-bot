@@ -82,6 +82,12 @@ _DETAIL_TEXTS = {
         "<code>/sha256 &lt;matn&gt;</code>, <code>/sha1 &lt;matn&gt;</code>, "
         "<code>/md5 &lt;matn&gt;</code>, <code>/base64_encode &lt;matn&gt;</code>"
     ),
+    "personal_wordlist": (
+        "🎯 <b>Shaxsiy wordlist generatori</b>\n\n"
+        "<code>/personal_wordlist &lt;ism, taxallus, yil, ...&gt;</code>\n"
+        "Misol: <code>/personal_wordlist John, Smith, 1995</code>\n\n"
+        "⚠️ <i>Faqat o'zingiz yoki ruxsat bergan shaxs ma'lumotlaridan foydalaning.</i>"
+    ),
 }
 
 
@@ -114,6 +120,14 @@ ACTION_PROMPTS = {
     "sha1": "#️⃣ <b>SHA-1 hash</b>\n\nMatningizni yuboring 👇",
     "md5": "#️⃣ <b>MD5 hash</b>\n\nMatningizni yuboring 👇",
     "base64_encode": "🔡 <b>Base64 kodlash</b>\n\nMatningizni yuboring 👇",
+    "personal_wordlist": (
+        "🎯 <b>Shaxsiy wordlist generatori</b>\n\n"
+        "Ism, taxallus, tug'ilgan yil va h.k.ni <b>vergul bilan ajratib</b> yuboring "
+        "(kamida 1 ta so'z kerak).\n\n"
+        "Misol: <code>John, Smith, Johnny, 1995, Max</code>\n\n"
+        "⚠️ <i>Faqat o'zingiz yoki ruxsat bergan shaxs ma'lumotlaridan, "
+        "ta'lim/pentest maqsadida foydalaning. Ma'lumot saqlanmaydi.</i> 👇"
+    ),
 }
 
 
