@@ -6,27 +6,29 @@ from __future__ import annotations
 from html import escape
 
 WELCOME_TEXT = """\
-👋 <b>Salom!</b> Men <b>Cryptanalysis Bot</b>man.
+🔓 <b>Cryptanalysis Lab</b>
 
-Men quyidagilarni qilaman:
-• Kodlangan matnni (base64/hex/url) <b>avtomatik ochaman</b>
-• Klassik shifrlarni (XOR, Vigenère, substitution) <b>kalit berilmasa ham buzaman</b>
+Kodlangan yoki shifrlangan matnni yuboring — <b>kalit shart emas</b>.
 
-Pastdagi tugmalardan birini tanlang yoki /help yuboring 👇
+<b>Qo'llab-quvvatlanadi:</b>
+▫️ Base64 / Hex / URL-encoding — avtomatik aniqlanadi
+▫️ XOR, Vigenère, monoalfavit almashtirish — statistik tahlil orqali buziladi
+
+Boshlash uchun pastdagi tugmalardan birini tanlang 👇
 """
 
 HELP_TEXT = """\
-🔐 <b>Cryptanalysis Bot — buyruqlar</b>
+🔓 <b>Cryptanalysis Lab — buyruqlar</b>
 
-<b>📥 Avtomatik dekodlash</b>
-<code>/decode &lt;matn&gt;</code> — base64/hex/url/binary zanjirini avtomatik aniqlab ochadi
+<b>Avtomatik dekodlash</b>
+<code>/decode &lt;matn&gt;</code> — base64 / hex / url / binary zanjirini aniqlab ochadi
 
-<b>🔓 Klassik shifrlarni buzish</b>
+<b>Klassik shifrlarni buzish</b>
 <code>/xor &lt;hex&gt;</code> — takrorlanuvchi kalitli XOR (kiritish <b>hex</b> formatida)
-<code>/vigenere &lt;matn&gt;</code> — Vigenère shifrini Kasiski + IoC bilan buzadi
-<code>/substitution &lt;matn&gt;</code> — monoalfavit almashtirishni hill-climbing bilan buzadi
+<code>/vigenere &lt;matn&gt;</code> — Kasiski testi + Index of Coincidence
+<code>/substitution &lt;matn&gt;</code> — hill-climbing + quadgram statistikasi
 
-⏱ Har bir so'rov uchun vaqt/CPU limiti bor — og'ir hisoblashlar cheklangan.
+Har bir so'rovga vaqt/CPU limiti qo'yilgan.
 """
 
 _DETAIL_TEXTS = {

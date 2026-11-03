@@ -12,11 +12,21 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import BotCommand
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 
 from app.bot import db, handlers
 from app.bot.config import settings
+
+BOT_COMMANDS = [
+    BotCommand(command="start", description="Botni ishga tushirish"),
+    BotCommand(command="help", description="Yordam va buyruqlar ro'yxati"),
+    BotCommand(command="decode", description="Kodlashni avtomatik aniqlab ochish"),
+    BotCommand(command="xor", description="Takrorlanuvchi kalitli XOR'ni buzish"),
+    BotCommand(command="vigenere", description="Vigenère shifrini buzish"),
+    BotCommand(command="substitution", description="Harf almashtirishni buzish"),
+]
 
 logging.basicConfig(
     level=settings.log_level,
@@ -48,6 +58,7 @@ async def _periodic_cleanup() -> None:
 async def on_startup(bot: Bot) -> None:
     global _cleanup_task
     await db.init_db()
+    await bot.set_my_commands(BOT_COMMANDS)
     webhook_url = settings.webhook_base_url.rstrip("/") + settings.webhook_path
     await bot.set_webhook(url=webhook_url, secret_token=settings.webhook_secret_token)
     logger.info("webhook set to %s", webhook_url)
