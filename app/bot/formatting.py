@@ -149,6 +149,7 @@ ACTION_PROMPTS = {
     ),
     "rot13": "🔄 <b>ROT13</b>\n\nMatningizni yuboring 👇",
     "rot47": "🔄 <b>ROT47</b>\n\nMatningizni yuboring 👇",
+    "analyze": "📊 <b>Statistik tahlil</b>\n\nTahlil qilinadigan matnni yuboring 👇",
     "personal_wordlist": (
         "🎯 <b>Shaxsiy wordlist generatori</b>\n\n"
         "Ism, taxallus, tug'ilgan yil va h.k.ni <b>vergul bilan ajratib</b> yuboring "
