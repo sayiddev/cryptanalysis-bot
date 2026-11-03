@@ -17,6 +17,7 @@ import json
 import logging
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -562,35 +563,44 @@ async def handle_auditlog(message: Message) -> None:
 # ── Inline menu navigation ──
 
 
+async def _safe_edit(callback: CallbackQuery, text: str, reply_markup) -> None:
+    """edit_text fails on non-text messages (e.g. a document reply) — Telegram
+    simply refuses the API call. Fall back to sending a new message instead
+    of leaving the button looking unresponsive."""
+    try:
+        await callback.message.edit_text(text, reply_markup=reply_markup)
+    except TelegramBadRequest:
+        await callback.message.answer(text, reply_markup=reply_markup)
+
+
 @router.callback_query(F.data == "menu:main")
 async def handle_menu_main(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
+    await _safe_edit(callback, formatting.WELCOME_TEXT, main_menu_keyboard())
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:encrypt")
 async def handle_menu_encrypt(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(
-        formatting.detail_text("encrypt"), reply_markup=encrypt_menu_keyboard()
-    )
+    await _safe_edit(callback, formatting.detail_text("encrypt"), encrypt_menu_keyboard())
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:help")
 async def handle_menu_help(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
+    await _safe_edit(callback, formatting.HELP_TEXT, main_menu_keyboard())
     await callback.answer()
 
 
 @router.callback_query(F.data == "menu:wordlists")
 async def handle_menu_wordlists(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(
+    await _safe_edit(
+        callback,
         formatting.WORDLISTS_TEXT,
-        reply_markup=wordlists_menu_keyboard(formatting.WORDLIST_FILES),
+        wordlists_menu_keyboard(formatting.WORDLIST_FILES),
     )
     await callback.answer()
 
@@ -626,9 +636,10 @@ async def handle_action_button(callback: CallbackQuery, state: FSMContext) -> No
     if action == "personal_wordlist":
         await state.set_state(PersonalWordlistForm.name)
         await state.update_data(words=[], years=[])
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback,
             "🎯 <b>Shaxsiy wordlist generatori</b>\n\n1/4: <b>Ismni</b> kiriting:",
-            reply_markup=cancel_keyboard(),
+            cancel_keyboard(),
         )
         await callback.answer()
         return
@@ -637,9 +648,7 @@ async def handle_action_button(callback: CallbackQuery, state: FSMContext) -> No
         return
     await state.set_state(AwaitingInput.waiting)
     await state.update_data(action=action)
-    await callback.message.edit_text(
-        formatting.ACTION_PROMPTS[action], reply_markup=cancel_keyboard()
-    )
+    await _safe_edit(callback, formatting.ACTION_PROMPTS[action], cancel_keyboard())
     await callback.answer()
 
 
