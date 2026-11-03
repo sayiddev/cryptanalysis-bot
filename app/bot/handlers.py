@@ -39,7 +39,7 @@ from app.bot.keyboards import (
     wordlists_menu_keyboard,
 )
 from app.bot.ratelimit import get_rate_limiter
-from app.bot.states import AwaitingInput
+from app.bot.states import AwaitingInput, PersonalWordlistForm
 from app.bot.validation import validate_hex_input, validate_text_input
 from app.core import classical_ciphers, hash_tools, wordlist_gen
 from app.worker import client as worker_client
@@ -320,7 +320,23 @@ async def _process_base64_encode(message: Message, text: str) -> None:
     )
 
 
+async def _generate_and_send_wordlist(message: Message, words: list[str], years: list[str]) -> None:
+    candidates = wordlist_gen.generate_personal_wordlist(words, years)
+    content = "\n".join(candidates).encode("utf-8")
+
+    # THREAT_MODEL.md: never persist the personal input itself, only that
+    # this action happened (data minimization + audit trail).
+    await db.record_job(message.from_user.id, "personal_wordlist", "ok")
+
+    await message.reply_document(
+        BufferedInputFile(content, filename="shaxsiy_wordlist.txt"),
+        caption=f"🎯 {len(candidates)} ta so'z generatsiya qilindi.",
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
 async def _process_personal_wordlist(message: Message, text: str) -> None:
+    """Quick one-line form: /personal_wordlist John, Smith, 1995"""
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
         await _reply_validation_error(message, "personal_wordlist", validation.reason)
@@ -336,18 +352,7 @@ async def _process_personal_wordlist(message: Message, text: str) -> None:
         )
         return
 
-    candidates = wordlist_gen.generate_personal_wordlist(words, years)
-    content = "\n".join(candidates).encode("utf-8")
-
-    # THREAT_MODEL.md: never persist the personal input itself, only that
-    # this action happened (data minimization + audit trail).
-    await db.record_job(message.from_user.id, "personal_wordlist", "ok")
-
-    await message.reply_document(
-        BufferedInputFile(content, filename="shaxsiy_wordlist.txt"),
-        caption=f"🎯 {len(candidates)} ta so'z generatsiya qilindi.",
-        reply_markup=back_to_menu_keyboard(),
-    )
+    await _generate_and_send_wordlist(message, words, years)
 
 
 _ACTIONS = {
@@ -363,7 +368,6 @@ _ACTIONS = {
     "sha1": _process_sha1,
     "md5": _process_md5,
     "base64_encode": _process_base64_encode,
-    "personal_wordlist": _process_personal_wordlist,
 }
 
 
@@ -619,6 +623,15 @@ async def handle_get_wordlist_file(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.startswith("action:"))
 async def handle_action_button(callback: CallbackQuery, state: FSMContext) -> None:
     action = callback.data.split(":", 1)[1]
+    if action == "personal_wordlist":
+        await state.set_state(PersonalWordlistForm.name)
+        await state.update_data(words=[], years=[])
+        await callback.message.edit_text(
+            "🎯 <b>Shaxsiy wordlist generatori</b>\n\n1/4: <b>Ismni</b> kiriting:",
+            reply_markup=cancel_keyboard(),
+        )
+        await callback.answer()
+        return
     if action not in _ACTIONS:
         await callback.answer()
         return
@@ -628,6 +641,83 @@ async def handle_action_button(callback: CallbackQuery, state: FSMContext) -> No
         formatting.ACTION_PROMPTS[action], reply_markup=cancel_keyboard()
     )
     await callback.answer()
+
+
+# ── Step-by-step personal wordlist form ──
+
+
+@router.message(StateFilter(PersonalWordlistForm.name), F.text, ~F.text.startswith("/"))
+async def handle_wordlist_name(message: Message, state: FSMContext) -> None:
+    name = message.text.strip()
+    if not name:
+        await message.reply("Iltimos, ismni kiriting:", reply_markup=cancel_keyboard())
+        return
+    data = await state.get_data()
+    words = data.get("words", [])
+    words.append(name)
+    await state.update_data(words=words)
+    await state.set_state(PersonalWordlistForm.nickname)
+    await message.reply(
+        "2/4: <b>Taxallus/nickname</b> bo'lsa yozing, bo'lmasa <code>-</code> yuboring:",
+        reply_markup=cancel_keyboard(),
+    )
+
+
+@router.message(StateFilter(PersonalWordlistForm.nickname), F.text, ~F.text.startswith("/"))
+async def handle_wordlist_nickname(message: Message, state: FSMContext) -> None:
+    text = message.text.strip()
+    if text and text != "-":
+        data = await state.get_data()
+        words = data.get("words", [])
+        words.append(text)
+        await state.update_data(words=words)
+    await state.set_state(PersonalWordlistForm.birth_year)
+    await message.reply(
+        "3/4: <b>Tug'ilgan yil</b> (4 xonali, masalan 1995) bo'lsa yozing, "
+        "bo'lmasa <code>-</code> yuboring:",
+        reply_markup=cancel_keyboard(),
+    )
+
+
+@router.message(StateFilter(PersonalWordlistForm.birth_year), F.text, ~F.text.startswith("/"))
+async def handle_wordlist_birth_year(message: Message, state: FSMContext) -> None:
+    text = message.text.strip()
+    if text and text != "-":
+        if not (text.isdigit() and len(text) == 4):
+            await message.reply(
+                "Yil 4 xonali raqam bo'lishi kerak (masalan 1995) yoki <code>-</code> yuboring:",
+                reply_markup=cancel_keyboard(),
+            )
+            return
+        data = await state.get_data()
+        years = data.get("years", [])
+        years.append(text)
+        await state.update_data(years=years)
+    await state.set_state(PersonalWordlistForm.extra)
+    await message.reply(
+        "4/4: Yana bir so'z (uy hayvoni, sevimli narsa) bo'lsa yozing, bo'lmasa <code>-</code>:",
+        reply_markup=cancel_keyboard(),
+    )
+
+
+@router.message(StateFilter(PersonalWordlistForm.extra), F.text, ~F.text.startswith("/"))
+async def handle_wordlist_extra(message: Message, state: FSMContext) -> None:
+    text = message.text.strip()
+    data = await state.get_data()
+    words = data.get("words", [])
+    years = data.get("years", [])
+    if text and text != "-":
+        words.append(text)
+    await state.clear()
+
+    if not words:
+        await message.reply(
+            "Hech bo'lmasa bitta so'z kerak edi.", reply_markup=back_to_menu_keyboard()
+        )
+        return
+    if await _rate_limited(message):
+        return
+    await _generate_and_send_wordlist(message, words, years)
 
 
 # ── Plain-text input while an action button is pending ──
