@@ -7,12 +7,13 @@ from __future__ import annotations
 
 import logging
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
-from app.bot import db, security
+from app.bot import db, formatting, security
 from app.bot.config import settings
+from app.bot.keyboards import back_to_menu_keyboard, main_menu_keyboard
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.validation import validate_hex_input, validate_text_input
 from app.worker import client as worker_client
@@ -21,20 +22,6 @@ logger = logging.getLogger("bot.handlers")
 router = Router()
 
 GENERIC_ERROR_MESSAGE = "⚠️ Xatolik yuz berdi. Keyinroq qaytadan urinib ko'ring."
-
-HELP_TEXT = """\
-🔐 <b>Cryptanalysis Bot</b>
-
-<b>Avtomatik dekodlash:</b>
-/decode &lt;matn&gt; — base64/hex/url/binary zanjirini avtomatik aniqlab ochadi
-
-<b>Klassik shifrlarni buzish:</b>
-/xor &lt;hex&gt; — takrorlanuvchi kalitli XOR (kiritish hex formatida bo'lishi kerak)
-/vigenere &lt;matn&gt; — Vigenère shifrini Kasiski + IoC bilan buzadi
-/substitution &lt;matn&gt; — monoalfavit o'rin almashtirishni hill-climbing bilan buzadi
-
-Har bir so'rov uchun vaqt/CPU limiti qo'yilgan — og'ir hisoblashlar cheklangan.
-"""
 
 
 def _require_argument(command: CommandObject) -> str | None:
@@ -51,17 +38,50 @@ async def _rate_limited(message: Message) -> bool:
     return False
 
 
+async def _reply_missing_argument(message: Message, command_name: str) -> None:
+    await message.reply(
+        formatting.detail_text(command_name), reply_markup=back_to_menu_keyboard()
+    )
+
+
+async def _reply_validation_error(message: Message, command_name: str, reason: str) -> None:
+    await message.reply(
+        f"❌ {reason}\n\n<i>Misol uchun quyidagi tugmani bosing:</i>",
+        reply_markup=back_to_menu_keyboard(),
+    )
+    logger.info("validation failed for /%s: %s", command_name, reason)
+
+
 @router.message(Command("start"))
 async def handle_start(message: Message) -> None:
     await db.get_or_create_user(message.from_user.id)
-    await message.reply(
-        "Salom! Men kriptotahlil botiman. Buyruqlar ro'yxati uchun /help yuboring."
-    )
+    await message.reply(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
 
 
 @router.message(Command("help"))
 async def handle_help(message: Message) -> None:
-    await message.reply(HELP_TEXT)
+    await message.reply(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
+
+
+@router.callback_query(F.data == "menu:main")
+async def handle_menu_main(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:help")
+async def handle_menu_help(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("menu:"))
+async def handle_menu_detail(callback: CallbackQuery) -> None:
+    command_name = callback.data.split(":", 1)[1]
+    await callback.message.edit_text(
+        formatting.detail_text(command_name), reply_markup=back_to_menu_keyboard()
+    )
+    await callback.answer()
 
 
 @router.message(Command("decode"))
@@ -70,12 +90,12 @@ async def handle_decode(message: Message, command: CommandObject) -> None:
         return
     text = _require_argument(command)
     if text is None:
-        await message.reply("Foydalanish: /decode <matn>")
+        await _reply_missing_argument(message, "decode")
         return
 
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
-        await message.reply(f"❌ {validation.reason}")
+        await _reply_validation_error(message, "decode", validation.reason)
         return
 
     outcome = await worker_client.run_job(
@@ -90,9 +110,8 @@ async def handle_decode(message: Message, command: CommandObject) -> None:
 
     result = outcome.result
     chain_desc = " → ".join(step["encoding"] for step in result["steps"]) or "(o'zgarishsiz)"
-    status = "✅ aniqlandi" if result["is_plaintext"] else "⚠️ to'liq ochilmadi"
     await message.reply(
-        f"<b>Zanjir:</b> {chain_desc}\n<b>Holat:</b> {status}\n\n<code>{result['final_text']}</code>"
+        formatting.decode_result(chain_desc, result["is_plaintext"], result["final_text"])
     )
 
 
@@ -102,12 +121,12 @@ async def handle_xor(message: Message, command: CommandObject) -> None:
         return
     hex_text = _require_argument(command)
     if hex_text is None:
-        await message.reply("Foydalanish: /xor <hex_shifrmatn>")
+        await _reply_missing_argument(message, "xor")
         return
 
     validation = validate_hex_input(hex_text)
     if not validation.ok:
-        await message.reply(f"❌ {validation.reason}")
+        await _reply_validation_error(message, "xor", validation.reason)
         return
 
     outcome = await worker_client.run_job(
@@ -122,12 +141,10 @@ async def handle_xor(message: Message, command: CommandObject) -> None:
 
     best = outcome.result["candidates"][0] if outcome.result["candidates"] else None
     if best is None:
-        await message.reply("Kalit topilmadi.")
+        await message.reply("🤷 Kalit topilmadi.")
         return
     await message.reply(
-        f"<b>Kalit (ascii):</b> <code>{best['key_ascii']}</code>\n"
-        f"<b>Kalit uzunligi:</b> {best['key_length']}\n\n"
-        f"<code>{best['plaintext']}</code>"
+        formatting.xor_result(best["key_ascii"], best["key_length"], best["plaintext"])
     )
 
 
@@ -137,12 +154,12 @@ async def handle_vigenere(message: Message, command: CommandObject) -> None:
         return
     text = _require_argument(command)
     if text is None:
-        await message.reply("Foydalanish: /vigenere <shifrmatn>")
+        await _reply_missing_argument(message, "vigenere")
         return
 
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
-        await message.reply(f"❌ {validation.reason}")
+        await _reply_validation_error(message, "vigenere", validation.reason)
         return
 
     outcome = await worker_client.run_job(
@@ -157,11 +174,9 @@ async def handle_vigenere(message: Message, command: CommandObject) -> None:
 
     best = outcome.result["candidates"][0] if outcome.result["candidates"] else None
     if best is None:
-        await message.reply("Kalit topilmadi.")
+        await message.reply("🤷 Kalit topilmadi.")
         return
-    await message.reply(
-        f"<b>Kalit:</b> <code>{best['key']}</code>\n\n<code>{best['plaintext']}</code>"
-    )
+    await message.reply(formatting.vigenere_result(best["key"], best["plaintext"]))
 
 
 @router.message(Command("substitution"))
@@ -170,12 +185,12 @@ async def handle_substitution(message: Message, command: CommandObject) -> None:
         return
     text = _require_argument(command)
     if text is None:
-        await message.reply("Foydalanish: /substitution <shifrmatn>")
+        await _reply_missing_argument(message, "substitution")
         return
 
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
-        await message.reply(f"❌ {validation.reason}")
+        await _reply_validation_error(message, "substitution", validation.reason)
         return
 
     outcome = await worker_client.run_job(
@@ -190,7 +205,7 @@ async def handle_substitution(message: Message, command: CommandObject) -> None:
         await message.reply(GENERIC_ERROR_MESSAGE)
         return
 
-    await message.reply(f"<code>{outcome.result['plaintext']}</code>")
+    await message.reply(formatting.substitution_result(outcome.result["plaintext"]))
 
 
 @router.message(Command("stats"))
