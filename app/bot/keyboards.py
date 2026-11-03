@@ -1,25 +1,52 @@
-"""Inline keyboards for the main menu and per-command help screens."""
+"""Inline keyboards for the main menu and the "tap, then just type" flow.
+
+Tapping an action button sets an FSM state and prompts the user for plain
+text — no slash command needed. See handlers.py for the state handler.
+"""
 
 from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-MENU_BUTTONS = [
-    ("🔓 Decode", "menu:decode"),
-    ("🔑 XOR", "menu:xor"),
-    ("📜 Vigenère", "menu:vigenere"),
-    ("🔤 Substitution", "menu:substitution"),
-    ("✉️ Shifrlash", "menu:encrypt"),
+BREAK_BUTTONS = [
+    ("🔓 Decode", "action:decode"),
+    ("🔑 XOR buzish", "action:xor"),
+    ("📜 Vigenère buzish", "action:vigenere"),
+    ("🔤 Substitution buzish", "action:substitution"),
+]
+
+ENCRYPT_BUTTONS = [
+    ("🅰️ Caesar", "action:caesar"),
+    ("📜 Vigenère", "action:vigenere_encrypt"),
+    ("🔑 XOR", "action:xor_encrypt"),
+    ("🔤 Substitution", "action:substitution_encrypt"),
 ]
 
 
-def main_menu_keyboard() -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton(text=label, callback_data=data) for label, data in MENU_BUTTONS[i : i + 2]]
-        for i in range(0, len(MENU_BUTTONS), 2)
+def _rows_of_two(buttons: list[tuple[str, str]]) -> list[list[InlineKeyboardButton]]:
+    return [
+        [InlineKeyboardButton(text=label, callback_data=data) for label, data in buttons[i : i + 2]]
+        for i in range(0, len(buttons), 2)
     ]
+
+
+def main_menu_keyboard() -> InlineKeyboardMarkup:
+    rows = _rows_of_two(BREAK_BUTTONS)
+    rows.append([InlineKeyboardButton(text="✉️ Shifrlash", callback_data="menu:encrypt")])
     rows.append([InlineKeyboardButton(text="❓ Yordam", callback_data="menu:help")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def encrypt_menu_keyboard() -> InlineKeyboardMarkup:
+    rows = _rows_of_two(ENCRYPT_BUTTONS)
+    rows.append([InlineKeyboardButton(text="⬅️ Menyu", callback_data="menu:main")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def cancel_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text="❌ Bekor qilish", callback_data="menu:main")]]
+    )
 
 
 def back_to_menu_keyboard() -> InlineKeyboardMarkup:

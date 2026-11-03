@@ -14,7 +14,7 @@ Kodlangan yoki shifrlangan matnni yuboring — <b>kalit shart emas</b>.
 • Base64 / Hex / URL-encoding — avtomatik aniqlanadi
 • XOR, Vigenère, monoalfavit almashtirish — statistik tahlil orqali buziladi
 
-Boshlash uchun pastdagi tugmalardan birini tanlang 👇
+Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring — buyruq yozish shart emas 👇
 """
 
 HELP_TEXT = """\
@@ -77,6 +77,30 @@ _DETAIL_TEXTS = {
 
 def detail_text(command: str) -> str:
     return _DETAIL_TEXTS.get(command, HELP_TEXT)
+
+
+ACTION_PROMPTS = {
+    "decode": "📥 <b>Avtomatik dekodlash</b>\n\nKodlangan matningizni yuboring 👇",
+    "xor": (
+        "🔑 <b>XOR buzish</b>\n\nShifrmatnni <b>hex</b> formatida yuboring "
+        "(masalan: <code>1a2b3c...</code>) 👇"
+    ),
+    "vigenere": "📜 <b>Vigenère buzish</b>\n\nShifrmatningizni yuboring 👇",
+    "substitution": "🔤 <b>Substitution buzish</b>\n\nShifrmatningizni yuboring 👇",
+    "caesar": (
+        "🅰️ <b>Caesar shifrlash</b>\n\n"
+        "<code>shift matn</code> formatida yuboring.\nMisol: <code>3 hello world</code> 👇"
+    ),
+    "vigenere_encrypt": (
+        "📜 <b>Vigenère bilan shifrlash</b>\n\n"
+        "<code>kalit matn</code> formatida yuboring.\nMisol: <code>LION the quick brown fox</code> 👇"
+    ),
+    "xor_encrypt": (
+        "🔑 <b>XOR bilan shifrlash</b>\n\n"
+        "<code>kalit matn</code> formatida yuboring.\nMisol: <code>LION the quick brown fox</code> 👇"
+    ),
+    "substitution_encrypt": "🔤 <b>Tasodifiy substitution bilan shifrlash</b>\n\nMatningizni yuboring 👇",
+}
 
 
 def decode_result(chain_desc: str, is_plaintext: bool, final_text: str) -> str:

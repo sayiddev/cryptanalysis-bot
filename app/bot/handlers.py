@@ -1,20 +1,34 @@
 """Telegram command handlers. Business logic stays in app/core — handlers
 only validate input, enforce rate limits, dispatch to the isolated worker,
 and format the reply. Errors shown to users are always generic; details go
-to the log only (THREAT_MODEL.md #9)."""
+to the log only (THREAT_MODEL.md #9).
+
+Two ways to trigger an action:
+  1. Type a slash command with arguments, e.g. "/decode <text>".
+  2. Tap an inline button, then send the text as a plain message — this
+     flow is driven by the AwaitingInput FSM state (see states.py).
+Both paths converge on the same `_process_*` functions below.
+"""
 
 from __future__ import annotations
 
 import logging
 
 from aiogram import F, Router
-from aiogram.filters import Command, CommandObject
+from aiogram.filters import Command, CommandObject, StateFilter
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from app.bot import db, formatting, security
 from app.bot.config import settings
-from app.bot.keyboards import back_to_menu_keyboard, main_menu_keyboard
+from app.bot.keyboards import (
+    back_to_menu_keyboard,
+    cancel_keyboard,
+    encrypt_menu_keyboard,
+    main_menu_keyboard,
+)
 from app.bot.ratelimit import get_rate_limiter
+from app.bot.states import AwaitingInput
 from app.bot.validation import validate_hex_input, validate_text_input
 from app.core import classical_ciphers
 from app.worker import client as worker_client
@@ -29,6 +43,13 @@ def _require_argument(command: CommandObject) -> str | None:
     if command.args is None or not command.args.strip():
         return None
     return command.args.strip()
+
+
+def _split_first_token(args: str) -> tuple[str, str] | None:
+    parts = args.split(maxsplit=1)
+    if len(parts) != 2:
+        return None
+    return parts[0], parts[1]
 
 
 async def _rate_limited(message: Message) -> bool:
@@ -46,54 +67,14 @@ async def _reply_missing_argument(message: Message, command_name: str) -> None:
 
 
 async def _reply_validation_error(message: Message, command_name: str, reason: str) -> None:
-    await message.reply(
-        f"❌ {reason}\n\n<i>Misol uchun quyidagi tugmani bosing:</i>",
-        reply_markup=back_to_menu_keyboard(),
-    )
+    await message.reply(f"❌ {reason}", reply_markup=back_to_menu_keyboard())
     logger.info("validation failed for /%s: %s", command_name, reason)
 
 
-@router.message(Command("start"))
-async def handle_start(message: Message) -> None:
-    await db.get_or_create_user(message.from_user.id)
-    await message.reply(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
+# ── Core processing, shared by the command path and the FSM button path ──
 
 
-@router.message(Command("help"))
-async def handle_help(message: Message) -> None:
-    await message.reply(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
-
-
-@router.callback_query(F.data == "menu:main")
-async def handle_menu_main(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(F.data == "menu:help")
-async def handle_menu_help(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("menu:"))
-async def handle_menu_detail(callback: CallbackQuery) -> None:
-    command_name = callback.data.split(":", 1)[1]
-    await callback.message.edit_text(
-        formatting.detail_text(command_name), reply_markup=back_to_menu_keyboard()
-    )
-    await callback.answer()
-
-
-@router.message(Command("decode"))
-async def handle_decode(message: Message, command: CommandObject) -> None:
-    if await _rate_limited(message):
-        return
-    text = _require_argument(command)
-    if text is None:
-        await _reply_missing_argument(message, "decode")
-        return
-
+async def _process_decode(message: Message, text: str) -> None:
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
         await _reply_validation_error(message, "decode", validation.reason)
@@ -112,19 +93,12 @@ async def handle_decode(message: Message, command: CommandObject) -> None:
     result = outcome.result
     chain_desc = " → ".join(step["encoding"] for step in result["steps"]) or "(o'zgarishsiz)"
     await message.reply(
-        formatting.decode_result(chain_desc, result["is_plaintext"], result["final_text"])
+        formatting.decode_result(chain_desc, result["is_plaintext"], result["final_text"]),
+        reply_markup=back_to_menu_keyboard(),
     )
 
 
-@router.message(Command("xor"))
-async def handle_xor(message: Message, command: CommandObject) -> None:
-    if await _rate_limited(message):
-        return
-    hex_text = _require_argument(command)
-    if hex_text is None:
-        await _reply_missing_argument(message, "xor")
-        return
-
+async def _process_xor(message: Message, hex_text: str) -> None:
     validation = validate_hex_input(hex_text)
     if not validation.ok:
         await _reply_validation_error(message, "xor", validation.reason)
@@ -142,22 +116,15 @@ async def handle_xor(message: Message, command: CommandObject) -> None:
 
     best = outcome.result["candidates"][0] if outcome.result["candidates"] else None
     if best is None:
-        await message.reply("🤷 Kalit topilmadi.")
+        await message.reply("🤷 Kalit topilmadi.", reply_markup=back_to_menu_keyboard())
         return
     await message.reply(
-        formatting.xor_result(best["key_ascii"], best["key_length"], best["plaintext"])
+        formatting.xor_result(best["key_ascii"], best["key_length"], best["plaintext"]),
+        reply_markup=back_to_menu_keyboard(),
     )
 
 
-@router.message(Command("vigenere"))
-async def handle_vigenere(message: Message, command: CommandObject) -> None:
-    if await _rate_limited(message):
-        return
-    text = _require_argument(command)
-    if text is None:
-        await _reply_missing_argument(message, "vigenere")
-        return
-
+async def _process_vigenere(message: Message, text: str) -> None:
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
         await _reply_validation_error(message, "vigenere", validation.reason)
@@ -175,20 +142,15 @@ async def handle_vigenere(message: Message, command: CommandObject) -> None:
 
     best = outcome.result["candidates"][0] if outcome.result["candidates"] else None
     if best is None:
-        await message.reply("🤷 Kalit topilmadi.")
+        await message.reply("🤷 Kalit topilmadi.", reply_markup=back_to_menu_keyboard())
         return
-    await message.reply(formatting.vigenere_result(best["key"], best["plaintext"]))
+    await message.reply(
+        formatting.vigenere_result(best["key"], best["plaintext"]),
+        reply_markup=back_to_menu_keyboard(),
+    )
 
 
-@router.message(Command("substitution"))
-async def handle_substitution(message: Message, command: CommandObject) -> None:
-    if await _rate_limited(message):
-        return
-    text = _require_argument(command)
-    if text is None:
-        await _reply_missing_argument(message, "substitution")
-        return
-
+async def _process_substitution(message: Message, text: str) -> None:
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
         await _reply_validation_error(message, "substitution", validation.reason)
@@ -206,14 +168,151 @@ async def handle_substitution(message: Message, command: CommandObject) -> None:
         await message.reply(GENERIC_ERROR_MESSAGE)
         return
 
-    await message.reply(formatting.substitution_result(outcome.result["plaintext"]))
+    await message.reply(
+        formatting.substitution_result(outcome.result["plaintext"]),
+        reply_markup=back_to_menu_keyboard(),
+    )
 
 
-def _split_first_token(args: str) -> tuple[str, str] | None:
-    parts = args.split(maxsplit=1)
-    if len(parts) != 2:
-        return None
-    return parts[0], parts[1]
+async def _process_caesar(message: Message, args: str) -> None:
+    split = _split_first_token(args)
+    if split is None:
+        await _reply_missing_argument(message, "caesar")
+        return
+    shift_str, text = split
+    try:
+        shift = int(shift_str)
+    except ValueError:
+        await _reply_validation_error(message, "caesar", "shift butun son bo'lishi kerak")
+        return
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "caesar", validation.reason)
+        return
+    ciphertext = classical_ciphers.caesar_encrypt(text, shift)
+    await message.reply(
+        formatting.caesar_encrypted(shift, ciphertext), reply_markup=back_to_menu_keyboard()
+    )
+
+
+async def _process_vigenere_encrypt(message: Message, args: str) -> None:
+    split = _split_first_token(args)
+    if split is None:
+        await _reply_missing_argument(message, "vigenere_encrypt")
+        return
+    key, text = split
+    if not key.isalpha():
+        await _reply_validation_error(
+            message, "vigenere_encrypt", "kalit faqat harflardan iborat bo'lishi kerak"
+        )
+        return
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "vigenere_encrypt", validation.reason)
+        return
+    ciphertext = classical_ciphers.vigenere_encrypt(text, key)
+    await message.reply(
+        formatting.vigenere_encrypted(key, ciphertext), reply_markup=back_to_menu_keyboard()
+    )
+
+
+async def _process_xor_encrypt(message: Message, args: str) -> None:
+    split = _split_first_token(args)
+    if split is None:
+        await _reply_missing_argument(message, "xor_encrypt")
+        return
+    key, text = split
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "xor_encrypt", validation.reason)
+        return
+    ciphertext_hex = classical_ciphers.xor_encrypt_hex(text, key)
+    await message.reply(
+        formatting.xor_encrypted(key, ciphertext_hex), reply_markup=back_to_menu_keyboard()
+    )
+
+
+async def _process_substitution_encrypt(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "substitution_encrypt", validation.reason)
+        return
+    ciphertext, _mapping = classical_ciphers.random_substitution_encrypt(text)
+    await message.reply(
+        formatting.substitution_encrypted(ciphertext), reply_markup=back_to_menu_keyboard()
+    )
+
+
+_ACTIONS = {
+    "decode": _process_decode,
+    "xor": _process_xor,
+    "vigenere": _process_vigenere,
+    "substitution": _process_substitution,
+    "caesar": _process_caesar,
+    "vigenere_encrypt": _process_vigenere_encrypt,
+    "xor_encrypt": _process_xor_encrypt,
+    "substitution_encrypt": _process_substitution_encrypt,
+}
+
+
+# ── Commands ──
+
+
+@router.message(Command("start"))
+async def handle_start(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await db.get_or_create_user(message.from_user.id)
+    await message.reply(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
+
+
+@router.message(Command("help"))
+async def handle_help(message: Message, state: FSMContext) -> None:
+    await state.clear()
+    await message.reply(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
+
+
+@router.message(Command("decode"))
+async def handle_decode(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "decode")
+        return
+    await _process_decode(message, text)
+
+
+@router.message(Command("xor"))
+async def handle_xor(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "xor")
+        return
+    await _process_xor(message, text)
+
+
+@router.message(Command("vigenere"))
+async def handle_vigenere(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "vigenere")
+        return
+    await _process_vigenere(message, text)
+
+
+@router.message(Command("substitution"))
+async def handle_substitution(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "substitution")
+        return
+    await _process_substitution(message, text)
 
 
 @router.message(Command("caesar"))
@@ -221,25 +320,10 @@ async def handle_caesar(message: Message, command: CommandObject) -> None:
     if await _rate_limited(message):
         return
     args = _require_argument(command)
-    split = _split_first_token(args) if args else None
-    if split is None:
-        await _reply_missing_argument(message, "encrypt")
+    if args is None:
+        await _reply_missing_argument(message, "caesar")
         return
-    shift_str, text = split
-
-    try:
-        shift = int(shift_str)
-    except ValueError:
-        await _reply_validation_error(message, "caesar", "shift butun son bo'lishi kerak")
-        return
-
-    validation = validate_text_input(text, settings.max_input_bytes)
-    if not validation.ok:
-        await _reply_validation_error(message, "caesar", validation.reason)
-        return
-
-    ciphertext = classical_ciphers.caesar_encrypt(text, shift)
-    await message.reply(formatting.caesar_encrypted(shift, ciphertext))
+    await _process_caesar(message, args)
 
 
 @router.message(Command("vigenere_encrypt"))
@@ -247,22 +331,10 @@ async def handle_vigenere_encrypt(message: Message, command: CommandObject) -> N
     if await _rate_limited(message):
         return
     args = _require_argument(command)
-    split = _split_first_token(args) if args else None
-    if split is None:
-        await _reply_missing_argument(message, "encrypt")
+    if args is None:
+        await _reply_missing_argument(message, "vigenere_encrypt")
         return
-    key, text = split
-
-    if not key.isalpha():
-        await _reply_validation_error(message, "vigenere_encrypt", "kalit faqat harflardan iborat bo'lishi kerak")
-        return
-    validation = validate_text_input(text, settings.max_input_bytes)
-    if not validation.ok:
-        await _reply_validation_error(message, "vigenere_encrypt", validation.reason)
-        return
-
-    ciphertext = classical_ciphers.vigenere_encrypt(text, key)
-    await message.reply(formatting.vigenere_encrypted(key, ciphertext))
+    await _process_vigenere_encrypt(message, args)
 
 
 @router.message(Command("xor_encrypt"))
@@ -270,19 +342,10 @@ async def handle_xor_encrypt(message: Message, command: CommandObject) -> None:
     if await _rate_limited(message):
         return
     args = _require_argument(command)
-    split = _split_first_token(args) if args else None
-    if split is None:
-        await _reply_missing_argument(message, "encrypt")
+    if args is None:
+        await _reply_missing_argument(message, "xor_encrypt")
         return
-    key, text = split
-
-    validation = validate_text_input(text, settings.max_input_bytes)
-    if not validation.ok:
-        await _reply_validation_error(message, "xor_encrypt", validation.reason)
-        return
-
-    ciphertext_hex = classical_ciphers.xor_encrypt_hex(text, key)
-    await message.reply(formatting.xor_encrypted(key, ciphertext_hex))
+    await _process_xor_encrypt(message, args)
 
 
 @router.message(Command("substitution_encrypt"))
@@ -291,16 +354,9 @@ async def handle_substitution_encrypt(message: Message, command: CommandObject) 
         return
     text = _require_argument(command)
     if text is None:
-        await _reply_missing_argument(message, "encrypt")
+        await _reply_missing_argument(message, "substitution_encrypt")
         return
-
-    validation = validate_text_input(text, settings.max_input_bytes)
-    if not validation.ok:
-        await _reply_validation_error(message, "substitution_encrypt", validation.reason)
-        return
-
-    ciphertext, _mapping = classical_ciphers.random_substitution_encrypt(text)
-    await message.reply(formatting.substitution_encrypted(ciphertext))
+    await _process_substitution_encrypt(message, text)
 
 
 @router.message(Command("stats"))
@@ -321,3 +377,61 @@ async def handle_auditlog(message: Message) -> None:
     intact = await db.verify_audit_log_integrity()
     await db.add_audit_log_entry(message.from_user.id, "auditlog_verified")
     await message.reply("✅ Audit log yaxlit." if intact else "🚨 Audit log buzilgan!")
+
+
+# ── Inline menu navigation ──
+
+
+@router.callback_query(F.data == "menu:main")
+async def handle_menu_main(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text(formatting.WELCOME_TEXT, reply_markup=main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:encrypt")
+async def handle_menu_encrypt(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text(
+        formatting.detail_text("encrypt"), reply_markup=encrypt_menu_keyboard()
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:help")
+async def handle_menu_help(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text(formatting.HELP_TEXT, reply_markup=main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("action:"))
+async def handle_action_button(callback: CallbackQuery, state: FSMContext) -> None:
+    action = callback.data.split(":", 1)[1]
+    if action not in _ACTIONS:
+        await callback.answer()
+        return
+    await state.set_state(AwaitingInput.waiting)
+    await state.update_data(action=action)
+    await callback.message.edit_text(
+        formatting.ACTION_PROMPTS[action], reply_markup=cancel_keyboard()
+    )
+    await callback.answer()
+
+
+# ── Plain-text input while an action button is pending ──
+
+
+@router.message(StateFilter(AwaitingInput.waiting), F.text, ~F.text.startswith("/"))
+async def handle_pending_action_input(message: Message, state: FSMContext) -> None:
+    if await _rate_limited(message):
+        return
+    data = await state.get_data()
+    action = data.get("action")
+    await state.clear()
+
+    handler = _ACTIONS.get(action)
+    if handler is None:
+        await message.reply(GENERIC_ERROR_MESSAGE)
+        return
+    await handler(message, message.text.strip())
