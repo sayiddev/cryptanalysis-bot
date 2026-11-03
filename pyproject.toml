@@ -7,6 +7,7 @@ include = ["app*"]
 
 [tool.setuptools.package-data]
 "app.core.data" = ["*.json", "*.txt"]
+"app.bot.webapp" = ["*.html"]
 
 [project]
 name = "cryptanalysis-bot"

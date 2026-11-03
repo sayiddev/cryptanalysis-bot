@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -80,6 +81,14 @@ async def on_shutdown(bot: Bot) -> None:
     await bot.delete_webhook()
 
 
+_WEBAPP_DIR = Path(__file__).parent / "webapp"
+
+
+async def _serve_decode_webapp(request: web.Request) -> web.Response:
+    html = (_WEBAPP_DIR / "decode.html").read_text(encoding="utf-8")
+    return web.Response(text=html, content_type="text/html")
+
+
 def build_app() -> web.Application:
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
@@ -88,6 +97,7 @@ def build_app() -> web.Application:
     SimpleRequestHandler(
         dispatcher=dp, bot=bot, secret_token=settings.webhook_secret_token
     ).register(app, path=settings.webhook_path)
+    app.router.add_get("/webapp/decode", _serve_decode_webapp)
     setup_application(app, dp, bot=bot)
     return app
 

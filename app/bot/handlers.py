@@ -12,12 +12,20 @@ Both paths converge on the same `_process_*` functions below.
 
 from __future__ import annotations
 
+import base64
+import json
 import logging
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject, StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    WebAppInfo,
+)
 
 from app.bot import db, formatting, security
 from app.bot.config import settings
@@ -74,6 +82,28 @@ async def _reply_validation_error(message: Message, command_name: str, reason: s
 # ── Core processing, shared by the command path and the FSM button path ──
 
 
+MAX_WEBAPP_DATA_LENGTH = 1500
+
+
+def _decode_webapp_keyboard(result: dict) -> InlineKeyboardMarkup:
+    payload = json.dumps(
+        {
+            "steps": result["steps"],
+            "is_plaintext": result["is_plaintext"],
+            "final_text": result["final_text"],
+        }
+    )
+    encoded = base64.urlsafe_b64encode(payload.encode("utf-8")).decode("ascii").rstrip("=")
+
+    buttons = [[InlineKeyboardButton(text="⬅️ Menyu", callback_data="menu:main")]]
+    if len(encoded) <= MAX_WEBAPP_DATA_LENGTH:
+        url = f"{settings.webhook_base_url.rstrip('/')}/webapp/decode?data={encoded}"
+        buttons.insert(
+            0, [InlineKeyboardButton(text="🌐 Vizual ko'rish", web_app=WebAppInfo(url=url))]
+        )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 async def _process_decode(message: Message, text: str) -> None:
     validation = validate_text_input(text, settings.max_input_bytes)
     if not validation.ok:
@@ -94,7 +124,7 @@ async def _process_decode(message: Message, text: str) -> None:
     chain_desc = " → ".join(step["encoding"] for step in result["steps"]) or "(o'zgarishsiz)"
     await message.reply(
         formatting.decode_result(chain_desc, result["is_plaintext"], result["final_text"]),
-        reply_markup=back_to_menu_keyboard(),
+        reply_markup=_decode_webapp_keyboard(result),
     )
 
 

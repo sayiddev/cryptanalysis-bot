@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Decode natijasi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #17212b;
+    --card: #1f2a36;
+    --text: #e8edf2;
+    --muted: #8a99a8;
+    --accent: #4fa8ff;
+    --accent-2: #38c172;
+    --border: #2b3947;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill {
+    background: var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .arrow { color: var(--muted); font-size: 14px; }
+  .status {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+  .status.ok { background: rgba(56,193,114,0.15); color: var(--accent-2); }
+  .status.warn { background: rgba(255,170,60,0.15); color: #ffaa3c; }
+  pre {
+    background: #0f1720;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    margin: 10px 0 0;
+  }
+  .muted { color: var(--muted); font-size: 12px; }
+  canvas { width: 100%; height: 160px; }
+  .bar-label { font-size: 10px; fill: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>🔓 Avtomatik dekodlash natijasi</h1>
+
+  <div class="card">
+    <div class="muted">Zanjir</div>
+    <div class="chain" id="chain"></div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="muted">Yakuniy matn</div>
+    <pre id="final-text"></pre>
+  </div>
+
+  <div class="card" id="freq-card" style="display:none">
+    <div class="muted">Harf chastotasi</div>
+    <canvas id="freq-chart"></canvas>
+  </div>
+
+<script>
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  function decodeData() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("data");
+    if (!raw) return null;
+    try {
+      let b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      const json = decodeURIComponent(escape(atob(b64)));
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const data = decodeData();
+  const chainEl = document.getElementById("chain");
+  const statusEl = document.getElementById("status");
+  const finalTextEl = document.getElementById("final-text");
+
+  if (!data) {
+    finalTextEl.textContent = "Ma'lumot topilmadi.";
+  } else {
+    const steps = data.steps || [];
+    if (steps.length === 0) {
+      chainEl.innerHTML = '<span class="pill">(o\'zgarishsiz)</span>';
+    } else {
+      steps.forEach((step, i) => {
+        if (i > 0) {
+          const arrow = document.createElement("span");
+          arrow.className = "arrow";
+          arrow.textContent = "→";
+          chainEl.appendChild(arrow);
+        }
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = step.encoding;
+        chainEl.appendChild(pill);
+      });
+    }
+
+    const statusSpan = document.createElement("span");
+    statusSpan.className = "status " + (data.is_plaintext ? "ok" : "warn");
+    statusSpan.textContent = data.is_plaintext ? "✅ Aniqlandi" : "⚠️ To'liq ochilmadi";
+    statusEl.appendChild(statusSpan);
+
+    finalTextEl.textContent = data.final_text || "";
+
+    if (data.is_plaintext && data.final_text) {
+      drawFrequencyChart(data.final_text);
+    }
+  }
+
+  function drawFrequencyChart(text) {
+    const counts = {};
+    let total = 0;
+    for (const ch of text.toUpperCase()) {
+      if (ch >= "A" && ch <= "Z") {
+        counts[ch] = (counts[ch] || 0) + 1;
+        total++;
+      }
+    }
+    if (total === 0) return;
+
+    document.getElementById("freq-card").style.display = "block";
+    const canvas = document.getElementById("freq-chart");
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth || 320;
+    const height = 160;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+
+    const letters = Object.keys(counts).sort();
+    const maxCount = Math.max(...letters.map((l) => counts[l]));
+    const barWidth = width / letters.length;
+
+    ctx.fillStyle = "#4fa8ff";
+    letters.forEach((letter, i) => {
+      const barHeight = (counts[letter] / maxCount) * (height - 24);
+      const x = i * barWidth + 2;
+      const y = height - barHeight - 16;
+      ctx.fillRect(x, y, barWidth - 4, barHeight);
+      ctx.fillStyle = "#8a99a8";
+      ctx.font = "10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(letter, x + (barWidth - 4) / 2, height - 4);
+      ctx.fillStyle = "#4fa8ff";
+    });
+  }
+</script>
+</body>
+</html>

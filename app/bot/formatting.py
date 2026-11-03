@@ -10,23 +10,23 @@ WELCOME_TEXT = """\
 
 Men ikki narsani qilaman:
 
-<b>🔨 Buzish</b> — kodlangan/shifrlangan matnni <b>kalitsiz</b> ochaman
+<b>🔨 Buzish</b> - kodlangan/shifrlangan matnni <b>kalitsiz</b> ochaman
 (Base64, Hex, URL-encoding, XOR, Vigenère, monoalfavit almashtirish)
 
-<b>✉️ Qurish</b> — o'z matningizni klassik shifrlar bilan shifrlab beraman,
+<b>✉️ Qurish</b> - o'z matningizni klassik shifrlar bilan shifrlab beraman,
 keyin uni qayta buzishimni sinab ko'rasiz
 
-Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring — buyruq yozish shart emas 👇
+Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring - buyruq yozish shart emas 👇
 """
 
 HELP_TEXT = """\
-🔓 <b>Cryptanalysis Bot — buyruqlar</b>
+🔓 <b>Cryptanalysis Bot - buyruqlar</b>
 
 <b>🔨 Buzish</b>
-<code>/decode &lt;matn&gt;</code> — base64 / hex / url / binary zanjirini aniqlab ochadi
-<code>/xor &lt;hex&gt;</code> — takrorlanuvchi kalitli XOR (kiritish <b>hex</b> formatida)
-<code>/vigenere &lt;matn&gt;</code> — Kasiski testi + Index of Coincidence
-<code>/substitution &lt;matn&gt;</code> — hill-climbing + quadgram statistikasi
+<code>/decode &lt;matn&gt;</code> - base64 / hex / url / binary zanjirini aniqlab ochadi
+<code>/xor &lt;hex&gt;</code> - takrorlanuvchi kalitli XOR (kiritish <b>hex</b> formatida)
+<code>/vigenere &lt;matn&gt;</code> - Kasiski testi + Index of Coincidence
+<code>/substitution &lt;matn&gt;</code> - hill-climbing + quadgram statistikasi
 
 <b>✉️ Qurish (shifrlash)</b>
 <code>/caesar &lt;shift&gt; &lt;matn&gt;</code>
@@ -42,7 +42,7 @@ _DETAIL_TEXTS = {
     "decode": (
         "📥 <b>Avtomatik dekodlash</b>\n\n"
         "Kodlangan matnni (base64, hex, URL-encoding, binary) avtomatik aniqlab, "
-        "zanjirlab ochadi — CyberChef uslubida.\n\n"
+        "zanjirlab ochadi - CyberChef uslubida.\n\n"
         "<b>Foydalanish:</b>\n<code>/decode &lt;matn&gt;</code>\n\n"
         "<b>Misol:</b>\n<code>/decode c2VjdXJpdHkgaXMgaW1wb3J0YW50</code>"
     ),
@@ -77,7 +77,7 @@ _DETAIL_TEXTS = {
         "<code>/vigenere_encrypt LION the quick brown fox</code>\n\n"
         "<code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>\n"
         "<code>/xor_encrypt LION the quick brown fox</code> → natija <code>/xor</code>ga beriladi\n\n"
-        "<code>/substitution_encrypt &lt;matn&gt;</code> — tasodifiy almashtirish bilan shifrlaydi\n\n"
+        "<code>/substitution_encrypt &lt;matn&gt;</code> - tasodifiy almashtirish bilan shifrlaydi\n\n"
         "<b>Hash / kodlash:</b>\n"
         "<code>/sha256 &lt;matn&gt;</code>, <code>/sha1 &lt;matn&gt;</code>, "
         "<code>/md5 &lt;matn&gt;</code>, <code>/base64_encode &lt;matn&gt;</code>"
@@ -122,7 +122,7 @@ def decode_result(chain_desc: str, is_plaintext: bool, final_text: str) -> str:
     return (
         f"📥 <b>Zanjir:</b> {escape(chain_desc)}\n"
         f"{status}\n"
-        f"———————————\n"
+        f"-——————————\n"
         f"<code>{escape(final_text)}</code>"
     )
 
