@@ -43,7 +43,15 @@ from app.bot.keyboards import (
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.states import AwaitingInput, PersonalWordlistForm
 from app.bot.validation import validate_hex_input, validate_text_input
-from app.core import classical_ciphers, hash_tools, password_gen, wordlist_gen
+from app.core import (
+    affine_breaker,
+    classical_ciphers,
+    hash_tools,
+    password_gen,
+    rot_ciphers,
+    text_analysis,
+    wordlist_gen,
+)
 from app.worker import client as worker_client
 
 logger = logging.getLogger("bot.handlers")
@@ -357,6 +365,68 @@ async def _process_personal_wordlist(message: Message, text: str) -> None:
     await _generate_and_send_wordlist(message, words, years)
 
 
+async def _process_rot13(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "rot13", validation.reason)
+        return
+    await message.reply(
+        formatting.rot_result("ROT13", rot_ciphers.rot13(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_rot47(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "rot47", validation.reason)
+        return
+    await message.reply(
+        formatting.rot_result("ROT47", rot_ciphers.rot47(text)),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_affine(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "affine", validation.reason)
+        return
+    results = affine_breaker.crack_affine(text, candidates=1)
+    if not results:
+        await message.reply("🤷 Kalit topilmadi.", reply_markup=back_to_menu_keyboard())
+        return
+    best = results[0]
+    await message.reply(
+        formatting.affine_result(best.a, best.b, best.plaintext),
+        reply_markup=back_to_menu_keyboard(),
+    )
+
+
+async def _process_affine_encrypt(message: Message, args: str) -> None:
+    parts = args.split(maxsplit=2)
+    if len(parts) != 3:
+        await _reply_missing_argument(message, "affine_encrypt")
+        return
+    a_str, b_str, text = parts
+    if not (a_str.lstrip("-").isdigit() and b_str.lstrip("-").isdigit()):
+        await _reply_validation_error(message, "affine_encrypt", "a va b butun son bo'lishi kerak")
+        return
+    a, b = int(a_str), int(b_str)
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "affine_encrypt", validation.reason)
+        return
+    try:
+        ciphertext = affine_breaker.affine_encrypt(text, a, b)
+    except ValueError as exc:
+        await _reply_validation_error(message, "affine_encrypt", str(exc))
+        return
+    await message.reply(
+        formatting.affine_encrypted(a, b, ciphertext), reply_markup=back_to_menu_keyboard()
+    )
+
+
 _ACTIONS = {
     "decode": _process_decode,
     "xor": _process_xor,
@@ -370,6 +440,10 @@ _ACTIONS = {
     "sha1": _process_sha1,
     "md5": _process_md5,
     "base64_encode": _process_base64_encode,
+    "rot13": _process_rot13,
+    "rot47": _process_rot47,
+    "affine": _process_affine,
+    "affine_encrypt": _process_affine_encrypt,
 }
 
 
@@ -519,6 +593,90 @@ async def handle_base64_encode(message: Message, command: CommandObject) -> None
         await _reply_missing_argument(message, "base64_encode")
         return
     await _process_base64_encode(message, text)
+
+
+@router.message(Command("rot13"))
+async def handle_rot13(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "rot13")
+        return
+    await _process_rot13(message, text)
+
+
+@router.message(Command("rot47"))
+async def handle_rot47(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "rot47")
+        return
+    await _process_rot47(message, text)
+
+
+@router.message(Command("affine"))
+async def handle_affine(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await _reply_missing_argument(message, "affine")
+        return
+    await _process_affine(message, text)
+
+
+@router.message(Command("affine_encrypt"))
+async def handle_affine_encrypt(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    args = _require_argument(command)
+    if args is None:
+        await _reply_missing_argument(message, "affine_encrypt")
+        return
+    await _process_affine_encrypt(message, args)
+
+
+@router.message(Command("analyze"))
+async def handle_analyze(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    text = _require_argument(command)
+    if text is None:
+        await message.reply("Foydalanish: /analyze <matn>")
+        return
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "analyze", validation.reason)
+        return
+    analysis = text_analysis.analyze_text(text)
+    await message.reply(
+        formatting.analysis_result(analysis), reply_markup=back_to_menu_keyboard()
+    )
+
+
+@router.message(Command("history"))
+async def handle_history(message: Message) -> None:
+    jobs = await db.get_recent_jobs(message.from_user.id, limit=10)
+    await message.reply(formatting.history_result(jobs), reply_markup=back_to_menu_keyboard())
+
+
+@router.message(Command("randkey"))
+async def handle_randkey(message: Message, command: CommandObject) -> None:
+    args = (command.args or "").strip().lower().split()
+    kind = args[0] if args else "alpha"
+    length = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+
+    if kind == "hex":
+        key = password_gen.generate_random_hex_key(length or 8)
+    else:
+        key = password_gen.generate_random_alpha_key(length or 8)
+
+    await message.reply(
+        f"🔑 <b>Tasodifiy kalit:</b> <code>{key}</code>", reply_markup=back_to_menu_keyboard()
+    )
 
 
 @router.message(Command("wordlists"))

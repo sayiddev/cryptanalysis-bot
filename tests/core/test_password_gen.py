@@ -29,3 +29,16 @@ def test_only_expected_characters_used():
     allowed = set(string.ascii_letters + string.digits + password_gen._SYMBOLS)
     pw = password_gen.generate_strong_password(50)
     assert set(pw) <= allowed
+
+
+def test_random_alpha_key_is_uppercase_and_correct_length():
+    key = password_gen.generate_random_alpha_key(10)
+    assert len(key) == 10
+    assert key.isalpha()
+    assert key.isupper()
+
+
+def test_random_hex_key_is_valid_hex_and_correct_length():
+    key = password_gen.generate_random_hex_key(8)
+    assert len(key) == 16  # 8 bytes -> 16 hex chars
+    int(key, 16)  # raises if not valid hex

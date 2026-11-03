@@ -13,6 +13,7 @@ BREAK_BUTTONS = [
     ("🔑 XOR buzish", "action:xor"),
     ("📜 Vigenère buzish", "action:vigenere"),
     ("🔤 Substitution buzish", "action:substitution"),
+    ("🔢 Affine buzish", "action:affine"),
 ]
 
 ENCRYPT_BUTTONS = [
@@ -20,6 +21,9 @@ ENCRYPT_BUTTONS = [
     ("📜 Vigenère", "action:vigenere_encrypt"),
     ("🔑 XOR", "action:xor_encrypt"),
     ("🔤 Substitution", "action:substitution_encrypt"),
+    ("🔢 Affine", "action:affine_encrypt"),
+    ("🔄 ROT13", "action:rot13"),
+    ("🔄 ROT47", "action:rot47"),
     ("#️⃣ SHA-256", "action:sha256"),
     ("#️⃣ SHA-1", "action:sha1"),
     ("#️⃣ MD5", "action:md5"),

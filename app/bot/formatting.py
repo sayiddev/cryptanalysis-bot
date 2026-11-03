@@ -27,13 +27,22 @@ HELP_TEXT = """\
 <code>/xor &lt;hex&gt;</code> - takrorlanuvchi kalitli XOR (kiritish <b>hex</b> formatida)
 <code>/vigenere &lt;matn&gt;</code> - Kasiski testi + Index of Coincidence
 <code>/substitution &lt;matn&gt;</code> - hill-climbing + quadgram statistikasi
+<code>/affine &lt;matn&gt;</code> - barcha (a,b) juftligini sinab buzadi
 
 <b>✉️ Qurish (shifrlash)</b>
 <code>/caesar &lt;shift&gt; &lt;matn&gt;</code>
 <code>/vigenere_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
 <code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
 <code>/substitution_encrypt &lt;matn&gt;</code>
+<code>/affine_encrypt &lt;a&gt; &lt;b&gt; &lt;matn&gt;</code>
+<code>/rot13 /rot47 &lt;matn&gt;</code>
 <code>/sha256 /sha1 /md5 /base64_encode &lt;matn&gt;</code>
+
+<b>🔬 Tahlil va vositalar</b>
+<code>/analyze &lt;matn&gt;</code> - entropiya, Index of Coincidence, chastota
+<code>/history</code> - so'nggi so'rovlaringiz
+<code>/randkey [alpha|hex] [uzunlik]</code> - tasodifiy kalit
+<code>/genpass [uzunlik]</code> - kuchli parol
 
 Har bir so'rovga vaqt/CPU limiti qo'yilgan.
 """
@@ -88,6 +97,19 @@ _DETAIL_TEXTS = {
         "Misol: <code>/personal_wordlist John, Smith, 1995</code>\n\n"
         "⚠️ <i>Faqat o'zingiz yoki ruxsat bergan shaxs ma'lumotlaridan foydalaning.</i>"
     ),
+    "affine": (
+        "🔢 <b>Affine shifrini buzish</b>\n\n"
+        "E(x) = (a·x + b) mod 26 — barcha 312 ta mumkin bo'lgan (a, b) juftligini "
+        "sinab, chi-squared tahlili bilan eng mosini topadi.\n\n"
+        "<b>Foydalanish:</b>\n<code>/affine &lt;shifrmatn&gt;</code>"
+    ),
+    "affine_encrypt": (
+        "🔢 <b>Affine bilan shifrlash</b>\n\n"
+        "<code>a b matn</code> formatida yuboring (a — 26 bilan o'zaro tub son: "
+        "1,3,5,7,9,11,15,17,19,21,23,25).\nMisol: <code>5 8 hello world</code> 👇"
+    ),
+    "rot13": "🔄 <b>ROT13</b>\n\nMatningizni yuboring 👇",
+    "rot47": "🔄 <b>ROT47</b>\n\nMatningizni yuboring 👇",
 }
 
 
@@ -120,6 +142,14 @@ ACTION_PROMPTS = {
     "sha1": "#️⃣ <b>SHA-1 hash</b>\n\nMatningizni yuboring 👇",
     "md5": "#️⃣ <b>MD5 hash</b>\n\nMatningizni yuboring 👇",
     "base64_encode": "🔡 <b>Base64 kodlash</b>\n\nMatningizni yuboring 👇",
+    "affine": "🔢 <b>Affine buzish</b>\n\nShifrmatningizni yuboring 👇",
+    "affine_encrypt": (
+        "🔢 <b>Affine bilan shifrlash</b>\n\n"
+        "<code>a b matn</code> formatida yuboring (a — 26 bilan o'zaro tub son: "
+        "1,3,5,7,9,11,15,17,19,21,23,25).\nMisol: <code>5 8 hello world</code> 👇"
+    ),
+    "rot13": "🔄 <b>ROT13</b>\n\nMatningizni yuboring 👇",
+    "rot47": "🔄 <b>ROT47</b>\n\nMatningizni yuboring 👇",
     "personal_wordlist": (
         "🎯 <b>Shaxsiy wordlist generatori</b>\n\n"
         "Ism, taxallus, tug'ilgan yil va h.k.ni <b>vergul bilan ajratib</b> yuboring "
@@ -267,6 +297,48 @@ def password_generated(password: str) -> str:
         f"———————————\n<code>{escape(password)}</code>\n\n"
         f"<i>Nusxalash uchun matnga bosing.</i>"
     )
+
+
+def affine_result(a: int, b: int, plaintext: str) -> str:
+    return (
+        f"🔢 <b>Kalit:</b> a={a}, b={b}\n"
+        f"———————————\n<code>{escape(plaintext)}</code>"
+    )
+
+
+def affine_encrypted(a: int, b: int, ciphertext: str) -> str:
+    return (
+        f"✉️ <b>Affine bilan shifrlandi</b> <i>(a={a}, b={b})</i>\n"
+        f"———————————\n<code>{escape(ciphertext)}</code>\n\n"
+        f"👉 Buzish uchun: <code>/affine {escape(ciphertext)}</code>"
+    )
+
+
+def rot_result(label: str, text: str) -> str:
+    return f"🔄 <b>{escape(label)}</b>\n———————————\n<code>{escape(text)}</code>"
+
+
+def analysis_result(analysis) -> str:
+    top_letters = ", ".join(f"{letter}:{count}" for letter, count in analysis.top_letters) or "—"
+    verdict = "✅ Ingliz tiliga o'xshaydi" if analysis.looks_english else "⚠️ Tasodifiy/shifrlangan ko'rinadi"
+    return (
+        "📊 <b>Matn tahlili</b>\n"
+        "———————————\n"
+        f"Uzunlik: {analysis.length} belgi ({analysis.letter_count} harf)\n"
+        f"Shannon entropiya: {analysis.shannon_entropy_bits:.3f} bit\n"
+        f"Index of Coincidence: {analysis.index_of_coincidence:.4f} "
+        f"<i>(ingliz tili ≈ 0.0667)</i>\n"
+        f"Chi-squared (ingliz tiliga nisbatan): {analysis.chi_squared_vs_english:.1f}\n"
+        f"Eng ko'p harflar: {top_letters}\n\n"
+        f"{verdict}"
+    )
+
+
+def history_result(jobs: list[tuple[str, str, str]]) -> str:
+    if not jobs:
+        return "📜 <b>Tarix</b>\n\nHali hech qanday so'rov yo'q."
+    lines = [f"• <code>{job_type}</code> — {status} ({created_at})" for job_type, status, created_at in jobs]
+    return "📜 <b>So'nggi so'rovlaringiz</b>\n\n" + "\n".join(lines)
 
 
 def hash_result(label: str, digest: str) -> str:

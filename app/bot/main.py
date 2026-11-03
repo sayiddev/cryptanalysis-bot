@@ -39,6 +39,13 @@ BOT_COMMANDS = [
     BotCommand(command="wordlists", description="Top 5 parol wordlist'ini yuklab olish"),
     BotCommand(command="personal_wordlist", description="Shaxsiy ma'lumotlardan wordlist yasash"),
     BotCommand(command="genpass", description="Kuchli tasodifiy parol yasash"),
+    BotCommand(command="rot13", description="ROT13 shifrlash/ochish"),
+    BotCommand(command="rot47", description="ROT47 shifrlash/ochish"),
+    BotCommand(command="affine", description="Affine shifrini buzish"),
+    BotCommand(command="affine_encrypt", description="Affine bilan shifrlash"),
+    BotCommand(command="analyze", description="Matnning statistik tahlili (IoC, entropiya)"),
+    BotCommand(command="history", description="So'nggi so'rovlaringiz tarixi"),
+    BotCommand(command="randkey", description="Tasodifiy kriptografik kalit yasash"),
 ]
 
 logging.basicConfig(

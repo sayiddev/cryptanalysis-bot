@@ -16,6 +16,17 @@ async def test_get_or_create_user_is_idempotent():
         assert user is not None
 
 
+async def test_get_recent_jobs_returns_newest_first():
+    await db.get_or_create_user(777)
+    await db.record_job(777, "chain", "ok")
+    await db.record_job(777, "xor", "error")
+
+    jobs = await db.get_recent_jobs(777, limit=10)
+    assert len(jobs) == 2
+    assert jobs[0][0] == "xor"  # most recent first
+    assert jobs[1][0] == "chain"
+
+
 async def test_record_job_and_prune_expired(monkeypatch):
     await db.get_or_create_user(555)
     await db.record_job(555, "chain", "ok")

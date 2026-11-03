@@ -35,3 +35,15 @@ def generate_strong_password(length: int = DEFAULT_LENGTH) -> str:
         j = secrets.randbelow(i + 1)
         chars[i], chars[j] = chars[j], chars[i]
     return "".join(chars)
+
+
+def generate_random_alpha_key(length: int = 8) -> str:
+    """Random uppercase-letter key, e.g. for a Vigenere cipher."""
+    length = max(1, min(64, length))
+    return "".join(secrets.choice(_UPPER) for _ in range(length))
+
+
+def generate_random_hex_key(length_bytes: int = 8) -> str:
+    """Random hex key, e.g. for a repeating-key XOR cipher."""
+    length_bytes = max(1, min(64, length_bytes))
+    return secrets.token_hex(length_bytes)

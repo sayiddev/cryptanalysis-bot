@@ -77,6 +77,18 @@ async def record_job(user_id: int, job_type: str, status: str) -> None:
         await session.commit()
 
 
+async def get_recent_jobs(user_id: int, limit: int = 10) -> list[tuple[str, str, str]]:
+    async with get_session() as session:
+        result = await session.execute(
+            select(JobRecord)
+            .where(JobRecord.user_id == user_id)
+            .order_by(JobRecord.id.desc())
+            .limit(limit)
+        )
+        rows = result.scalars().all()
+        return [(row.job_type, row.status, row.created_at.strftime("%Y-%m-%d %H:%M")) for row in rows]
+
+
 async def prune_expired_jobs() -> int:
     """Data minimization: delete job records older than JOB_RETENTION_DAYS."""
     cutoff = datetime.now(UTC) - timedelta(days=JOB_RETENTION_DAYS)
