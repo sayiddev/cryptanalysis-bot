@@ -37,12 +37,13 @@ from app.bot.keyboards import (
     cancel_keyboard,
     encrypt_menu_keyboard,
     main_menu_keyboard,
+    password_result_keyboard,
     wordlists_menu_keyboard,
 )
 from app.bot.ratelimit import get_rate_limiter
 from app.bot.states import AwaitingInput, PersonalWordlistForm
 from app.bot.validation import validate_hex_input, validate_text_input
-from app.core import classical_ciphers, hash_tools, wordlist_gen
+from app.core import classical_ciphers, hash_tools, password_gen, wordlist_gen
 from app.worker import client as worker_client
 
 logger = logging.getLogger("bot.handlers")
@@ -628,6 +629,36 @@ async def handle_get_wordlist_file(callback: CallbackQuery) -> None:
     except Exception:
         logger.exception("failed to send wordlist file %s", key)
         await callback.message.answer(GENERIC_ERROR_MESSAGE)
+
+
+@router.callback_query(F.data.startswith("genpass:"))
+async def handle_generate_password(callback: CallbackQuery) -> None:
+    if await _rate_limited(callback.message):
+        await callback.answer()
+        return
+    try:
+        length = int(callback.data.split(":", 1)[1])
+    except ValueError:
+        length = password_gen.DEFAULT_LENGTH
+
+    password = password_gen.generate_strong_password(length)
+    await callback.message.answer(
+        formatting.password_generated(password), reply_markup=password_result_keyboard(length)
+    )
+    await callback.answer()
+
+
+@router.message(Command("genpass"))
+async def handle_genpass_command(message: Message, command: CommandObject) -> None:
+    if await _rate_limited(message):
+        return
+    length = password_gen.DEFAULT_LENGTH
+    if command.args and command.args.strip().isdigit():
+        length = int(command.args.strip())
+    password = password_gen.generate_strong_password(length)
+    await message.reply(
+        formatting.password_generated(password), reply_markup=password_result_keyboard(length)
+    )
 
 
 @router.callback_query(F.data.startswith("action:"))

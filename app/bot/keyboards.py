@@ -39,6 +39,7 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     rows.append([InlineKeyboardButton(text="✉️ Shifrlash", callback_data="menu:encrypt")])
     rows.append([InlineKeyboardButton(text="📋 Top wordlistlar", callback_data="menu:wordlists")])
     rows.append([InlineKeyboardButton(text="📝 Wordlist yasash", callback_data="action:personal_wordlist")])
+    rows.append([InlineKeyboardButton(text="🔐 Kuchli parol yasash", callback_data="genpass:16")])
     rows.append([InlineKeyboardButton(text="❓ Yordam", callback_data="menu:help")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -56,6 +57,15 @@ def encrypt_menu_keyboard() -> InlineKeyboardMarkup:
     rows = _rows_of_two(ENCRYPT_BUTTONS)
     rows.append([InlineKeyboardButton(text="⬅️ Menyu", callback_data="menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def password_result_keyboard(length: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Yangisini", callback_data=f"genpass:{length}")],
+            [InlineKeyboardButton(text="⬅️ Menyu", callback_data="menu:main")],
+        ]
+    )
 
 
 def cancel_keyboard() -> InlineKeyboardMarkup:

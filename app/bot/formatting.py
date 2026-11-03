@@ -261,6 +261,14 @@ def substitution_encrypted(ciphertext: str) -> str:
     )
 
 
+def password_generated(password: str) -> str:
+    return (
+        f"🔐 <b>Yangi parol</b> <i>({len(password)} belgi)</i>\n"
+        f"———————————\n<code>{escape(password)}</code>\n\n"
+        f"<i>Nusxalash uchun matnga bosing.</i>"
+    )
+
+
 def hash_result(label: str, digest: str) -> str:
     return f"#️⃣ <b>{escape(label)}</b>\n———————————\n<code>{digest}</code>"
 

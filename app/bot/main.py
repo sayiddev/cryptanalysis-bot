@@ -38,6 +38,7 @@ BOT_COMMANDS = [
     BotCommand(command="base64_encode", description="Base64 formatiga kodlash"),
     BotCommand(command="wordlists", description="Top 5 parol wordlist'ini yuklab olish"),
     BotCommand(command="personal_wordlist", description="Shaxsiy ma'lumotlardan wordlist yasash"),
+    BotCommand(command="genpass", description="Kuchli tasodifiy parol yasash"),
 ]
 
 logging.basicConfig(
