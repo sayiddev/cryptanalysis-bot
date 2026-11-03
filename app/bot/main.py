@@ -48,6 +48,22 @@ BOT_COMMANDS = [
     BotCommand(command="randkey", description="Tasodifiy kriptografik kalit yasash"),
 ]
 
+BOT_SHORT_DESCRIPTION = (
+    "🔒 Cryptography & Cryptanalysis Toolkit — shifrlarni kalitsiz buzadi, "
+    "shifrlaydi, hash hisoblaydi"
+)
+
+BOT_DESCRIPTION = (
+    "🔒 DecodeWizard — kriptotahlil boti.\n\n"
+    "🔓 Noma'lum kalit bilan shifrlangan matnni buzadi: XOR, Vigenère, "
+    "monoalfavit almashtirish, Affine (o'z algoritmlari, tashqi kutubxonasiz).\n"
+    "🔒 Matningizni klassik shifrlar bilan shifrlaydi.\n"
+    "🔍 Base64/Hex/URL kabi kodlashlarni avtomatik aniqlab ochadi.\n"
+    "📊 Entropiya, Index of Coincidence kabi statistik tahlil beradi.\n"
+    "🔑 Kuchli parol va wordlist generatori.\n\n"
+    "Boshlash uchun pastdagi START tugmasini bosing."
+)
+
 logging.basicConfig(
     level=settings.log_level,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -79,6 +95,8 @@ async def on_startup(bot: Bot) -> None:
     global _cleanup_task
     await db.init_db()
     await bot.set_my_commands(BOT_COMMANDS)
+    await bot.set_my_description(description=BOT_DESCRIPTION)
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
     webhook_url = settings.webhook_base_url.rstrip("/") + settings.webhook_path
     await bot.set_webhook(url=webhook_url, secret_token=settings.webhook_secret_token)
     logger.info("webhook set to %s", webhook_url)
