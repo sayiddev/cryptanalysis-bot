@@ -6,17 +6,11 @@ from __future__ import annotations
 from html import escape
 
 WELCOME_TEXT = """\
-🔓 <b>DecodeWizard Bot</b>
+🔒 <b>DecodeWizard</b>
+<i>Cryptography &amp; Cryptanalysis Toolkit</i>
 
-Men ikki narsani qilaman:
-
-<b>🔨 Buzish</b> - kodlangan/shifrlangan matnni <b>kalitsiz</b> ochaman
-(Base64, Hex, URL-encoding, XOR, Vigenère, monoalfavit almashtirish)
-
-<b>✉️ Qurish</b> - o'z matningizni klassik shifrlar bilan shifrlab beraman,
-keyin uni qayta buzishimni sinab ko'rasiz
-
-Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring - buyruq yozish shart emas 👇
+Pastdagi bo'limdan birini tanlang, so'ng matningizni oddiy xabar sifatida \
+yuboring - buyruq yozish shart emas 👇
 """
 
 HELP_TEXT = """\
@@ -110,7 +104,12 @@ _DETAIL_TEXTS = {
     ),
     "rot13": "🔄 <b>ROT13</b>\n\nMatningizni yuboring 👇",
     "rot47": "🔄 <b>ROT47</b>\n\nMatningizni yuboring 👇",
+    "analyze": "📊 <b>Statistik tahlil</b>\n\nTahlil qilinadigan matnni yuboring 👇",
 }
+
+DECODE_BREAK_MENU_TEXT = "🔓 <b>Decode</b>\n\nQaysi shifrni buzishni xohlaysiz?"
+HASH_MENU_TEXT = "#️⃣ <b>Hash Tools</b>\n\nQaysi hash/kodlashni hisoblaymiz?"
+KEYGEN_MENU_TEXT = "🔑 <b>Key Generator</b>\n\nNimani yaratamiz?"
 
 
 def detail_text(command: str) -> str:

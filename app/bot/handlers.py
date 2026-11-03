@@ -35,9 +35,13 @@ from app.bot.config import settings
 from app.bot.keyboards import (
     back_to_menu_keyboard,
     cancel_keyboard,
+    decode_break_menu_keyboard,
     encrypt_menu_keyboard,
+    hash_menu_keyboard,
+    keygen_menu_keyboard,
     main_menu_keyboard,
     password_result_keyboard,
+    randkey_result_keyboard,
     wordlists_menu_keyboard,
 )
 from app.bot.ratelimit import get_rate_limiter
@@ -427,6 +431,17 @@ async def _process_affine_encrypt(message: Message, args: str) -> None:
     )
 
 
+async def _process_analyze(message: Message, text: str) -> None:
+    validation = validate_text_input(text, settings.max_input_bytes)
+    if not validation.ok:
+        await _reply_validation_error(message, "analyze", validation.reason)
+        return
+    analysis = text_analysis.analyze_text(text)
+    await message.reply(
+        formatting.analysis_result(analysis), reply_markup=back_to_menu_keyboard()
+    )
+
+
 _ACTIONS = {
     "decode": _process_decode,
     "xor": _process_xor,
@@ -444,6 +459,7 @@ _ACTIONS = {
     "rot47": _process_rot47,
     "affine": _process_affine,
     "affine_encrypt": _process_affine_encrypt,
+    "analyze": _process_analyze,
 }
 
 
@@ -645,16 +661,9 @@ async def handle_analyze(message: Message, command: CommandObject) -> None:
         return
     text = _require_argument(command)
     if text is None:
-        await message.reply("Foydalanish: /analyze <matn>")
+        await _reply_missing_argument(message, "analyze")
         return
-    validation = validate_text_input(text, settings.max_input_bytes)
-    if not validation.ok:
-        await _reply_validation_error(message, "analyze", validation.reason)
-        return
-    analysis = text_analysis.analyze_text(text)
-    await message.reply(
-        formatting.analysis_result(analysis), reply_markup=back_to_menu_keyboard()
-    )
+    await _process_analyze(message, text)
 
 
 @router.message(Command("history"))
@@ -666,16 +675,18 @@ async def handle_history(message: Message) -> None:
 @router.message(Command("randkey"))
 async def handle_randkey(message: Message, command: CommandObject) -> None:
     args = (command.args or "").strip().lower().split()
-    kind = args[0] if args else "alpha"
-    length = int(args[1]) if len(args) > 1 and args[1].isdigit() else None
+    kind = args[0] if args and args[0] in ("alpha", "hex") else "alpha"
+    length = int(args[1]) if len(args) > 1 and args[1].isdigit() else 8
 
-    if kind == "hex":
-        key = password_gen.generate_random_hex_key(length or 8)
-    else:
-        key = password_gen.generate_random_alpha_key(length or 8)
+    key = (
+        password_gen.generate_random_hex_key(length)
+        if kind == "hex"
+        else password_gen.generate_random_alpha_key(length)
+    )
 
     await message.reply(
-        f"🔑 <b>Tasodifiy kalit:</b> <code>{key}</code>", reply_markup=back_to_menu_keyboard()
+        f"🔑 <b>Tasodifiy kalit:</b> <code>{key}</code>",
+        reply_markup=randkey_result_keyboard(kind, length),
     )
 
 
@@ -760,6 +771,54 @@ async def handle_menu_wordlists(callback: CallbackQuery, state: FSMContext) -> N
         callback,
         formatting.WORDLISTS_TEXT,
         wordlists_menu_keyboard(formatting.WORDLIST_FILES),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:decode_break")
+async def handle_menu_decode_break(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await _safe_edit(callback, formatting.DECODE_BREAK_MENU_TEXT, decode_break_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:hash")
+async def handle_menu_hash(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await _safe_edit(callback, formatting.HASH_MENU_TEXT, hash_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:keygen")
+async def handle_menu_keygen(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await _safe_edit(callback, formatting.KEYGEN_MENU_TEXT, keygen_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:history")
+async def handle_menu_history(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    jobs = await db.get_recent_jobs(callback.from_user.id, limit=10)
+    await _safe_edit(callback, formatting.history_result(jobs), back_to_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("randkey:"))
+async def handle_randkey_button(callback: CallbackQuery) -> None:
+    if await _rate_limited(callback.message):
+        await callback.answer()
+        return
+    _, kind, length_str = callback.data.split(":")
+    length = int(length_str)
+    key = (
+        password_gen.generate_random_hex_key(length)
+        if kind == "hex"
+        else password_gen.generate_random_alpha_key(length)
+    )
+    await callback.message.answer(
+        f"🔑 <b>Tasodifiy kalit:</b> <code>{key}</code>",
+        reply_markup=randkey_result_keyboard(kind, length),
     )
     await callback.answer()
 
