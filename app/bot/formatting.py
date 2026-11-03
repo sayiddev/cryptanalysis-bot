@@ -6,27 +6,33 @@ from __future__ import annotations
 from html import escape
 
 WELCOME_TEXT = """\
-🔓 <b>Cryptanalysis Lab</b>
+🔓 <b>Cryptanalysis Bot</b>
 
-Kodlangan yoki shifrlangan matnni yuboring — <b>kalit shart emas</b>.
+Men ikki narsani qilaman:
 
-<b>Qo'llab-quvvatlanadi:</b>
-• Base64 / Hex / URL-encoding — avtomatik aniqlanadi
-• XOR, Vigenère, monoalfavit almashtirish — statistik tahlil orqali buziladi
+<b>🔨 Buzish</b> — kodlangan/shifrlangan matnni <b>kalitsiz</b> ochaman
+(Base64, Hex, URL-encoding, XOR, Vigenère, monoalfavit almashtirish)
+
+<b>✉️ Qurish</b> — o'z matningizni klassik shifrlar bilan shifrlab beraman,
+keyin uni qayta buzishimni sinab ko'rasiz
 
 Pastdagi tugmani bosing, so'ng matningizni oddiy xabar sifatida yuboring — buyruq yozish shart emas 👇
 """
 
 HELP_TEXT = """\
-🔓 <b>Cryptanalysis Lab — buyruqlar</b>
+🔓 <b>Cryptanalysis Bot — buyruqlar</b>
 
-<b>Avtomatik dekodlash</b>
+<b>🔨 Buzish</b>
 <code>/decode &lt;matn&gt;</code> — base64 / hex / url / binary zanjirini aniqlab ochadi
-
-<b>Klassik shifrlarni buzish</b>
 <code>/xor &lt;hex&gt;</code> — takrorlanuvchi kalitli XOR (kiritish <b>hex</b> formatida)
 <code>/vigenere &lt;matn&gt;</code> — Kasiski testi + Index of Coincidence
 <code>/substitution &lt;matn&gt;</code> — hill-climbing + quadgram statistikasi
+
+<b>✉️ Qurish (shifrlash)</b>
+<code>/caesar &lt;shift&gt; &lt;matn&gt;</code>
+<code>/vigenere_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
+<code>/xor_encrypt &lt;kalit&gt; &lt;matn&gt;</code>
+<code>/substitution_encrypt &lt;matn&gt;</code>
 
 Har bir so'rovga vaqt/CPU limiti qo'yilgan.
 """
@@ -61,7 +67,7 @@ _DETAIL_TEXTS = {
         "<b>Misol:</b>\n<code>Rth tzdrale ay wlegraoljgte drlhrwthd fjwn rtacdjqid</code>"
     ),
     "encrypt": (
-        "✉️ <b>Shifrlash (buzish emas — yaratish)</b>\n\n"
+        "✉️ <b>Qurish (shifrlash)</b>\n\n"
         "O'z matningizni shifrlab, keyin yuqoridagi buyruqlar bilan botning "
         "uni kalitsiz qanday buzishini sinab ko'ring.\n\n"
         "<code>/caesar &lt;shift&gt; &lt;matn&gt;</code>\n"
