@@ -11,8 +11,8 @@ WELCOME_TEXT = """\
 Kodlangan yoki shifrlangan matnni yuboring — <b>kalit shart emas</b>.
 
 <b>Qo'llab-quvvatlanadi:</b>
-▫️ Base64 / Hex / URL-encoding — avtomatik aniqlanadi
-▫️ XOR, Vigenère, monoalfavit almashtirish — statistik tahlil orqali buziladi
+• Base64 / Hex / URL-encoding — avtomatik aniqlanadi
+• XOR, Vigenère, monoalfavit almashtirish — statistik tahlil orqali buziladi
 
 Boshlash uchun pastdagi tugmalardan birini tanlang 👇
 """
