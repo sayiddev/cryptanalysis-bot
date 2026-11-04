@@ -9,11 +9,25 @@ async def _init_db():
 
 
 async def test_get_or_create_user_is_idempotent():
-    await db.get_or_create_user(555)
-    await db.get_or_create_user(555)  # should not raise / duplicate
+    first = await db.get_or_create_user(555)
+    second = await db.get_or_create_user(555)  # should not raise / duplicate
+    assert first is True
+    assert second is False
     async with db.get_session() as session:
         user = await session.get(db.User, 555)
         assert user is not None
+
+
+async def test_language_defaults_and_can_be_set():
+    await db.get_or_create_user(888)
+    assert await db.get_user_language(888) == "uz"
+
+    await db.set_user_language(888, "ru")
+    assert await db.get_user_language(888) == "ru"
+
+
+async def test_get_user_language_for_unknown_user_defaults_to_uz():
+    assert await db.get_user_language(999999) == "uz"
 
 
 async def test_get_recent_jobs_returns_newest_first():

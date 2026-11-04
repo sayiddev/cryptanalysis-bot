@@ -21,48 +21,89 @@ from aiohttp import web
 from app.bot import db, handlers
 from app.bot.config import settings
 
-BOT_COMMANDS = [
-    BotCommand(command="start", description="Botni ishga tushirish"),
-    BotCommand(command="help", description="Yordam va buyruqlar ro'yxati"),
-    BotCommand(command="decode", description="Kodlashni avtomatik aniqlab ochish"),
-    BotCommand(command="xor", description="Takrorlanuvchi kalitli XOR'ni buzish"),
-    BotCommand(command="vigenere", description="Vigenère shifrini buzish"),
-    BotCommand(command="substitution", description="Harf almashtirishni buzish"),
-    BotCommand(command="caesar", description="Caesar shifri bilan shifrlash"),
-    BotCommand(command="vigenere_encrypt", description="Vigenère bilan shifrlash"),
-    BotCommand(command="xor_encrypt", description="XOR bilan shifrlash"),
-    BotCommand(command="substitution_encrypt", description="Tasodifiy substitution bilan shifrlash"),
-    BotCommand(command="sha256", description="SHA-256 hash hisoblash"),
-    BotCommand(command="sha1", description="SHA-1 hash hisoblash"),
-    BotCommand(command="md5", description="MD5 hash hisoblash"),
-    BotCommand(command="base64_encode", description="Base64 formatiga kodlash"),
-    BotCommand(command="wordlists", description="Top 5 parol wordlist'ini yuklab olish"),
-    BotCommand(command="personal_wordlist", description="Shaxsiy ma'lumotlardan wordlist yasash"),
-    BotCommand(command="genpass", description="Kuchli tasodifiy parol yasash"),
-    BotCommand(command="rot13", description="ROT13 shifrlash/ochish"),
-    BotCommand(command="rot47", description="ROT47 shifrlash/ochish"),
-    BotCommand(command="affine", description="Affine shifrini buzish"),
-    BotCommand(command="affine_encrypt", description="Affine bilan shifrlash"),
-    BotCommand(command="analyze", description="Matnning statistik tahlili (IoC, entropiya)"),
-    BotCommand(command="history", description="So'nggi so'rovlaringiz tarixi"),
-    BotCommand(command="randkey", description="Tasodifiy kriptografik kalit yasash"),
+_COMMAND_SPECS = [
+    ("start", {"uz": "Botni ishga tushirish", "ru": "Запустить бота", "en": "Start the bot"}),
+    ("help", {"uz": "Yordam va buyruqlar ro'yxati", "ru": "Помощь и список команд", "en": "Help and command list"}),
+    ("language", {"uz": "Tilni o'zgartirish", "ru": "Сменить язык", "en": "Change language"}),
+    ("decode", {"uz": "Kodlashni avtomatik aniqlab ochish", "ru": "Автоопределение и раскрытие кодирования", "en": "Auto-detect and unwrap encoding"}),
+    ("xor", {"uz": "Takrorlanuvchi kalitli XOR'ni buzish", "ru": "Взлом XOR с повторяющимся ключом", "en": "Break repeating-key XOR"}),
+    ("vigenere", {"uz": "Vigenère shifrini buzish", "ru": "Взлом шифра Vigenère", "en": "Break the Vigenère cipher"}),
+    ("substitution", {"uz": "Harf almashtirishni buzish", "ru": "Взлом моноалфавитной замены", "en": "Break substitution cipher"}),
+    ("caesar", {"uz": "Caesar shifri bilan shifrlash", "ru": "Шифрование шифром Caesar", "en": "Encrypt with the Caesar cipher"}),
+    ("vigenere_encrypt", {"uz": "Vigenère bilan shifrlash", "ru": "Шифрование Vigenère", "en": "Encrypt with Vigenère"}),
+    ("xor_encrypt", {"uz": "XOR bilan shifrlash", "ru": "Шифрование XOR", "en": "Encrypt with XOR"}),
+    ("substitution_encrypt", {"uz": "Tasodifiy substitution bilan shifrlash", "ru": "Шифрование случайной заменой", "en": "Encrypt with random substitution"}),
+    ("sha256", {"uz": "SHA-256 hash hisoblash", "ru": "Вычислить SHA-256", "en": "Compute SHA-256 hash"}),
+    ("sha1", {"uz": "SHA-1 hash hisoblash", "ru": "Вычислить SHA-1", "en": "Compute SHA-1 hash"}),
+    ("md5", {"uz": "MD5 hash hisoblash", "ru": "Вычислить MD5", "en": "Compute MD5 hash"}),
+    ("base64_encode", {"uz": "Base64 formatiga kodlash", "ru": "Кодировать в Base64", "en": "Encode to Base64"}),
+    ("wordlists", {"uz": "Top 5 parol wordlist'ini yuklab olish", "ru": "Скачать топ-5 wordlist паролей", "en": "Download the top 5 password wordlists"}),
+    ("personal_wordlist", {"uz": "Shaxsiy ma'lumotlardan wordlist yasash", "ru": "Создать wordlist из личных данных", "en": "Build a wordlist from personal info"}),
+    ("genpass", {"uz": "Kuchli tasodifiy parol yasash", "ru": "Сгенерировать надёжный пароль", "en": "Generate a strong password"}),
+    ("rot13", {"uz": "ROT13 shifrlash/ochish", "ru": "Шифрование/расшифровка ROT13", "en": "ROT13 encrypt/decrypt"}),
+    ("rot47", {"uz": "ROT47 shifrlash/ochish", "ru": "Шифрование/расшифровка ROT47", "en": "ROT47 encrypt/decrypt"}),
+    ("affine", {"uz": "Affine shifrini buzish", "ru": "Взлом шифра Affine", "en": "Break the Affine cipher"}),
+    ("affine_encrypt", {"uz": "Affine bilan shifrlash", "ru": "Шифрование Affine", "en": "Encrypt with Affine"}),
+    ("analyze", {"uz": "Matnning statistik tahlili (IoC, entropiya)", "ru": "Статистический анализ текста (IoC, энтропия)", "en": "Statistical text analysis (IoC, entropy)"}),
+    ("history", {"uz": "So'nggi so'rovlaringiz tarixi", "ru": "История последних запросов", "en": "Your recent request history"}),
+    ("randkey", {"uz": "Tasodifiy kriptografik kalit yasash", "ru": "Сгенерировать случайный ключ", "en": "Generate a random crypto key"}),
 ]
 
-BOT_SHORT_DESCRIPTION = (
-    "🔒 Cryptography & Cryptanalysis Toolkit — shifrlarni kalitsiz buzadi, "
-    "shifrlaydi, hash hisoblaydi"
-)
+BOT_COMMANDS = [BotCommand(command=cmd, description=desc["uz"]) for cmd, desc in _COMMAND_SPECS]
+BOT_COMMANDS_BY_LANG = {
+    lang: [BotCommand(command=cmd, description=desc[lang]) for cmd, desc in _COMMAND_SPECS]
+    for lang in ("ru", "en")
+}
 
-BOT_DESCRIPTION = (
-    "🔒 DecodeWizard — kriptotahlil boti.\n\n"
-    "🔓 Noma'lum kalit bilan shifrlangan matnni buzadi: XOR, Vigenère, "
-    "monoalfavit almashtirish, Affine (o'z algoritmlari, tashqi kutubxonasiz).\n"
-    "🔒 Matningizni klassik shifrlar bilan shifrlaydi.\n"
-    "🔍 Base64/Hex/URL kabi kodlashlarni avtomatik aniqlab ochadi.\n"
-    "📊 Entropiya, Index of Coincidence kabi statistik tahlil beradi.\n"
-    "🔑 Kuchli parol va wordlist generatori.\n\n"
-    "Boshlash uchun pastdagi START tugmasini bosing."
-)
+BOT_SHORT_DESCRIPTION_BY_LANG = {
+    "uz": (
+        "🔒 Cryptography & Cryptanalysis Toolkit — shifrlarni kalitsiz buzadi, "
+        "shifrlaydi, hash hisoblaydi"
+    ),
+    "ru": (
+        "🔒 Cryptography & Cryptanalysis Toolkit — взламывает шифры без ключа, "
+        "шифрует, считает hash"
+    ),
+    "en": (
+        "🔒 Cryptography & Cryptanalysis Toolkit — breaks ciphers without the "
+        "key, encrypts, computes hashes"
+    ),
+}
+
+BOT_DESCRIPTION_BY_LANG = {
+    "uz": (
+        "🔒 DecodeWizard — kriptotahlil boti.\n\n"
+        "🔓 Noma'lum kalit bilan shifrlangan matnni buzadi: XOR, Vigenère, "
+        "monoalfavit almashtirish, Affine (o'z algoritmlari, tashqi kutubxonasiz).\n"
+        "🔒 Matningizni klassik shifrlar bilan shifrlaydi.\n"
+        "🔍 Base64/Hex/URL kabi kodlashlarni avtomatik aniqlab ochadi.\n"
+        "📊 Entropiya, Index of Coincidence kabi statistik tahlil beradi.\n"
+        "🔑 Kuchli parol va wordlist generatori.\n\n"
+        "Boshlash uchun pastdagi START tugmasini bosing."
+    ),
+    "ru": (
+        "🔒 DecodeWizard — бот для криптоанализа.\n\n"
+        "🔓 Взламывает зашифрованный текст без ключа: XOR, Vigenère, "
+        "моноалфавитная замена, Affine (собственные алгоритмы, без сторонних "
+        "библиотек).\n"
+        "🔒 Шифрует ваш текст классическими шифрами.\n"
+        "🔍 Автоматически определяет и раскрывает Base64/Hex/URL.\n"
+        "📊 Даёт статистику — энтропию, индекс совпадений.\n"
+        "🔑 Генератор надёжных паролей и wordlist.\n\n"
+        "Нажмите START ниже, чтобы начать."
+    ),
+    "en": (
+        "🔒 DecodeWizard — a cryptanalysis bot.\n\n"
+        "🔓 Breaks encrypted text without the key: XOR, Vigenère, "
+        "monoalphabetic substitution, Affine (own algorithms, no external "
+        "libraries).\n"
+        "🔒 Encrypts your text with classical ciphers.\n"
+        "🔍 Auto-detects and unwraps Base64/Hex/URL encoding.\n"
+        "📊 Gives statistics — entropy, Index of Coincidence.\n"
+        "🔑 Strong password and wordlist generator.\n\n"
+        "Tap START below to begin."
+    ),
+}
 
 logging.basicConfig(
     level=settings.log_level,
@@ -95,8 +136,14 @@ async def on_startup(bot: Bot) -> None:
     global _cleanup_task
     await db.init_db()
     await bot.set_my_commands(BOT_COMMANDS)
-    await bot.set_my_description(description=BOT_DESCRIPTION)
-    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+    await bot.set_my_description(description=BOT_DESCRIPTION_BY_LANG["uz"])
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION_BY_LANG["uz"])
+    for lang, commands in BOT_COMMANDS_BY_LANG.items():
+        await bot.set_my_commands(commands, language_code=lang)
+        await bot.set_my_description(description=BOT_DESCRIPTION_BY_LANG[lang], language_code=lang)
+        await bot.set_my_short_description(
+            short_description=BOT_SHORT_DESCRIPTION_BY_LANG[lang], language_code=lang
+        )
     webhook_url = settings.webhook_base_url.rstrip("/") + settings.webhook_path
     await bot.set_webhook(url=webhook_url, secret_token=settings.webhook_secret_token)
     logger.info("webhook set to %s", webhook_url)

@@ -63,12 +63,32 @@ def get_session() -> AsyncSession:
     return _session_factory()
 
 
-async def get_or_create_user(telegram_id: int) -> None:
+async def get_or_create_user(telegram_id: int) -> bool:
+    """Returns True if this is a brand-new user (useful to trigger the
+    first-run language picker)."""
     async with get_session() as session:
         existing = await session.get(User, telegram_id)
         if existing is None:
             session.add(User(telegram_id=telegram_id))
             await session.commit()
+            return True
+        return False
+
+
+async def get_user_language(telegram_id: int) -> str:
+    async with get_session() as session:
+        user = await session.get(User, telegram_id)
+        return user.language if user else "uz"
+
+
+async def set_user_language(telegram_id: int, language: str) -> None:
+    async with get_session() as session:
+        user = await session.get(User, telegram_id)
+        if user is None:
+            session.add(User(telegram_id=telegram_id, language=language))
+        else:
+            user.language = language
+        await session.commit()
 
 
 async def record_job(user_id: int, job_type: str, status: str) -> None:
