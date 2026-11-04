@@ -124,7 +124,12 @@ def _decode_webapp_keyboard(lang: str, result: dict) -> InlineKeyboardMarkup:
     if len(encoded) <= MAX_WEBAPP_DATA_LENGTH:
         url = f"{settings.webhook_base_url.rstrip('/')}/webapp/decode?data={encoded}"
         buttons.insert(
-            0, [InlineKeyboardButton(text=label(lang, "visual_view"), web_app=WebAppInfo(url=url))]
+            0,
+            [
+                InlineKeyboardButton(
+                    text=label(lang, "visual_view"), web_app=WebAppInfo(url=url), style="primary"
+                )
+            ],
         )
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

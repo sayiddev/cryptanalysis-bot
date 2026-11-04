@@ -3,6 +3,10 @@ submenu of specific tools. Tapping an action button sets an FSM state and
 prompts the user for plain text — no slash command needed. See
 handlers.py for the state handler. All button labels route through
 app.bot.i18n so the same menu renders in uz/ru/en.
+
+Buttons also carry a `style` ("primary" blue, "success" green, "danger"
+red, or None for the client's neutral default) — supported by Telegram
+clients released after 2026-02-09; older clients just show it unstyled.
 """
 
 from __future__ import annotations
@@ -10,6 +14,10 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.bot.i18n import LANGUAGE_NAMES, label
+
+
+def _btn(text: str, data: str, style: str | None = None) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=text, callback_data=data, style=style)
 
 
 def _category_buttons(lang: str) -> list[tuple[str, str]]:
@@ -63,61 +71,57 @@ def _keygen_buttons(lang: str) -> list[tuple[str, str]]:
     ]
 
 
-def _rows_of_two(buttons: list[tuple[str, str]]) -> list[list[InlineKeyboardButton]]:
+def _rows_of_two(buttons: list[tuple[str, str]], style: str | None) -> list[list[InlineKeyboardButton]]:
     return [
-        [InlineKeyboardButton(text=text, callback_data=data) for text, data in buttons[i : i + 2]]
+        [_btn(text, data, style) for text, data in buttons[i : i + 2]]
         for i in range(0, len(buttons), 2)
     ]
 
 
 def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_category_buttons(lang))
+    rows = _rows_of_two(_category_buttons(lang), "primary")
     rows.append(
         [
-            InlineKeyboardButton(text=label(lang, "language"), callback_data="menu:language"),
-            InlineKeyboardButton(text=label(lang, "help"), callback_data="menu:help"),
+            _btn(label(lang, "language"), "menu:language"),
+            _btn(label(lang, "help"), "menu:help"),
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def decode_break_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_decode_break_buttons(lang))
-    rows.append([InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")])
+    rows = _rows_of_two(_decode_break_buttons(lang), "primary")
+    rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def encrypt_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_encrypt_buttons(lang))
-    rows.append([InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")])
+    rows = _rows_of_two(_encrypt_buttons(lang), "primary")
+    rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def hash_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_hash_buttons(lang))
-    rows.append([InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")])
+    rows = _rows_of_two(_hash_buttons(lang), "primary")
+    rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def keygen_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text=text, callback_data=data)] for text, data in _keygen_buttons(lang)]
-    rows.append([InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")])
+    rows = [[_btn(text, data, "success")] for text, data in _keygen_buttons(lang)]
+    rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def wordlists_menu_keyboard(lang: str, wordlists: list[dict]) -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton(text=wl["label"], callback_data=f"getfile:{wl['key']}")]
-        for wl in wordlists
-    ]
-    rows.append([InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")])
+    rows = [[_btn(wl["label"], f"getfile:{wl['key']}", "primary")] for wl in wordlists]
+    rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def language_picker_keyboard() -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=name, callback_data=f"setlang:{code}")]
-        for code, name in LANGUAGE_NAMES.items()
+        [_btn(name, f"setlang:{code}", "primary")] for code, name in LANGUAGE_NAMES.items()
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -125,8 +129,8 @@ def language_picker_keyboard() -> InlineKeyboardMarkup:
 def password_result_keyboard(lang: str, length: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=label(lang, "regenerate"), callback_data=f"genpass:{length}")],
-            [InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")],
+            [_btn(label(lang, "regenerate"), f"genpass:{length}", "success")],
+            [_btn(label(lang, "menu"), "menu:main")],
         ]
     )
 
@@ -134,23 +138,15 @@ def password_result_keyboard(lang: str, length: int) -> InlineKeyboardMarkup:
 def randkey_result_keyboard(lang: str, kind: str, length: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=label(lang, "regenerate"), callback_data=f"randkey:{kind}:{length}"
-                )
-            ],
-            [InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")],
+            [_btn(label(lang, "regenerate"), f"randkey:{kind}:{length}", "success")],
+            [_btn(label(lang, "menu"), "menu:main")],
         ]
     )
 
 
 def cancel_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=label(lang, "cancel"), callback_data="menu:main")]]
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[[_btn(label(lang, "cancel"), "menu:main", "danger")]])
 
 
 def back_to_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=label(lang, "menu"), callback_data="menu:main")]]
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[[_btn(label(lang, "menu"), "menu:main")]])
