@@ -151,9 +151,14 @@ async def on_startup(bot: Bot) -> None:
 
 
 async def on_shutdown(bot: Bot) -> None:
+    # Deliberately NOT calling bot.delete_webhook() here: if a second
+    # instance is ever started by mistake while the first is still running,
+    # its on_startup fails to bind the port and aiohttp still runs this
+    # shutdown hook as cleanup — deleting the webhook would then silently
+    # break the still-running first instance. set_webhook() on the next
+    # real startup is idempotent, so there's nothing to clean up here.
     if _cleanup_task is not None:
         _cleanup_task.cancel()
-    await bot.delete_webhook()
 
 
 _WEBAPP_DIR = Path(__file__).parent / "webapp"
@@ -177,11 +182,27 @@ def build_app() -> web.Application:
     return app
 
 
+def _port_in_use(port: int) -> bool:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        return sock.connect_ex(("127.0.0.1", port)) == 0
+
+
 def main() -> None:
+    port = 8080
+    if _port_in_use(port):
+        logger.error(
+            "Port %d is already in use — another bot instance is probably still "
+            "running. Stop it first (don't start a second one), then try again.",
+            port,
+        )
+        raise SystemExit(1)
+
     # Binding all interfaces is required so the nginx container can reach
     # this one over the internal docker network; nginx is the only service
     # with a published port (443) in docker-compose.yml.
-    web.run_app(build_app(), host="0.0.0.0", port=8080)  # nosec B104
+    web.run_app(build_app(), host="0.0.0.0", port=port)  # nosec B104
 
 
 if __name__ == "__main__":

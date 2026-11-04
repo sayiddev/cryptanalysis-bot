@@ -695,7 +695,10 @@ ACTION_PROMPTS = {
     "rot13": DETAIL_TEXTS["rot13"],
     "rot47": DETAIL_TEXTS["rot47"],
     "analyze": DETAIL_TEXTS["analyze"],
-    "personal_wordlist": DETAIL_TEXTS["personal_wordlist"],
+    # Note: "personal_wordlist" has no entry here on purpose — its button
+    # flow is a multi-step form (see PersonalWordlistForm in handlers.py)
+    # special-cased before this table is ever consulted; only its
+    # DETAIL_TEXTS entry (shown for /personal_wordlist with no args) is used.
 }
 
 WORDLIST_DESCRIPTIONS = {

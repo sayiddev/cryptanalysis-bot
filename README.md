@@ -1,69 +1,99 @@
-# Cryptanalysis Bot
+# DecodeWizard — Cryptanalysis Bot
 
-Telegram bot: avtomatik kodlash zanjirini (base64/hex/url/binary) aniqlab ochadi
-va klassik shifrlarni (Vigenère, monoalfavit substitution, repeating-key XOR)
-o'z algoritmlari bilan buzadi — tashqi `ciphey`/`pycipher` kabi kutubxonalarsiz.
+Telegram bot: noma'lum kalit bilan shifrlangan matnni **o'z algoritmlari bilan
+buzadi** (tashqi `ciphey`/`pycipher` kabi kutubxonalarsiz), kodlangan matnni
+avtomatik aniqlab ochadi, shifrlaydi, hash hisoblaydi va parol/wordlist
+generatsiya qiladi. **3 tilni** (o'zbek, rus, ingliz) to'liq qo'llab-quvvatlaydi.
 
 **Muallif:** Muhammad Sayid Qosimov · Loyiha #3 (Capstone)
 
 Arxitektura va tahdid modeli: [docs/DESIGN.md](docs/DESIGN.md), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
-## Buyruqlar
+## Bot nima qiladi
 
-| Buyruq | Tavsif |
-|---|---|
-| `/decode <matn>` | Zanjirli avtomatik dekodlash (CyberChef uslubi) |
-| `/xor <hex>` | Takrorlanuvchi kalitli XOR'ni buzadi (kiritish **hex** formatida) |
-| `/vigenere <matn>` | Vigenère shifrini Kasiski testi + IoC bilan buzadi |
-| `/substitution <matn>` | Monoalfavit substitutsiyani hill-climbing bilan buzadi |
-| `/stats` | (admin) eski job yozuvlarini tozalaydi |
-| `/auditlog` | (admin) audit log hash-zanjirining yaxlitligini tekshiradi |
+| Bo'lim | Buyruqlar | Tavsif |
+|---|---|---|
+| 🔓 **Buzish** | `/xor` `/vigenere` `/substitution` `/affine` | Kalit berilmasa ham klassik shifrlarni statistik tahlil orqali buzadi |
+| 🔍 **Avtomatik aniqlash** | `/decode` | Base64/Hex/URL/binary zanjirini aniqlab ochadi (CyberChef uslubi) |
+| ✉️ **Shifrlash** | `/caesar` `/vigenere_encrypt` `/xor_encrypt` `/substitution_encrypt` `/affine_encrypt` `/rot13` `/rot47` | O'z matningizni shifrlab, keyin botning uni qanday buzishini sinab ko'rasiz |
+| #️⃣ **Hash/kodlash** | `/sha256` `/sha1` `/md5` `/base64_encode` | Standart kriptografik primitivlar |
+| 📊 **Tahlil** | `/analyze` | Entropiya, Index of Coincidence, chi-squared, harf chastotasi |
+| 📁 **Wordlist** | `/wordlists` `/personal_wordlist` | Tayyor parol ro'yxatlari (SecLists) + shaxsiy ma'lumotlardan generatsiya |
+| 🔑 **Generatorlar** | `/genpass` `/randkey` | Kuchli parol / tasodifiy kriptografik kalit |
+| 🕐 **Boshqa** | `/history` `/language` `/help` | So'rovlar tarixi, til tanlash, yordam |
 
-## Mahalliy ishga tushirish (testlar, kod sifatini tekshirish)
+Barcha funksiyalar **tugma orqali ham** ishlaydi — `/start` yuboring, tugmani
+bosing, so'ng matningizni oddiy xabar sifatida yuboring (buyruq yozish shart
+emas). Natijalarda qo'shimcha **Mini App** (vizual zanjir + harf-chastota
+grafigi) ham bor.
+
+## Mahalliy ishga tushirish
+
+### 1. Bog'liqliklarni o'rnatish
 
 ```bash
 pip install -e .[dev]
-pytest -v
-bandit -r app -ll
-ruff check app tests
 ```
 
-## Docker bilan ishga tushirish (demo)
-
-1. O'z botingizni [@BotFather](https://t.me/BotFather) orqali yarating, tokenni oling.
-2. `.env` faylini tayyorlang:
+### 2. `.env` faylini tayyorlash
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` ichida `BOT_TOKEN`, `WEBHOOK_SECRET_TOKEN` (tasodifiy 32 bayt hex),
-`WEBHOOK_BASE_URL` (tashqi HTTPS manzil) va `ADMIN_USER_IDS` (o'z Telegram
-user ID'ingiz) to'ldiring.
+`.env` ichida to'ldiring:
+- `BOT_TOKEN` — [@BotFather](https://t.me/BotFather)dan oling
+- `WEBHOOK_SECRET_TOKEN` — tasodifiy qiymat: `python -c "import secrets; print(secrets.token_hex(32))"`
+- `WEBHOOK_BASE_URL` — pastga qarang (devtunnel manzili)
+- `ADMIN_USER_IDS` — o'z Telegram user ID'ingiz ([@userinfobot](https://t.me/userinfobot)dan oling)
 
-3. Webhook HTTPS talab qiladi. Mahalliy demo uchun eng tez yo'l — `ngrok` orqali
-   tunnel ochish (baseline "webhook over HTTPS, no polling" talabini saqlab
-   qolamiz, faqat sertifikatni ngrok beradi):
+### 3. Webhook uchun tunnel (HTTPS talab qilinadi, polling yo'q)
+
+Doimiy manzil olish uchun — bir martalik sozlash:
 
 ```bash
-ngrok http 8080
+devtunnel create cryptobot --allow-anonymous
+devtunnel port create cryptobot -p 8080
 ```
 
-   Keyin `.env`'dagi `WEBHOOK_BASE_URL`'ni ngrok bergan `https://...ngrok-free.app`
-   manziliga qo'ying va to'g'ridan-to'g'ri botni ishga tushiring (nginx'siz,
-   dev rejimida):
+Har safar kompyuterni yoqqandan keyin — shu ikki qadam:
 
+**1-terminal:**
 ```bash
-pip install -e .
+devtunnel host cryptobot
+```
+
+Chiqqan manzilni (masalan `https://xxxxx-8080.eun1.devtunnels.ms`) `.env`
+faylidagi `WEBHOOK_BASE_URL`ga qo'ying (**faqat birinchi marta** — keyin bu
+manzil doimiy qoladi).
+
+**2-terminal:**
+```bash
 python -m app.bot.main
 ```
 
-4. **Haqiqiy production** uchun (o'z domeningiz + TLS bilan) `docker-compose.yml`
-   ishlatiladi — `deploy/certs/` ichiga `fullchain.pem` va `privkey.pem`
-   qo'ying (Let's Encrypt yoki o'z-o'ziga imzolangan), so'ng:
+Loglarda `webhook set to https://...` chiqishi kerak — bot tayyor.
+
+> ⚠️ **Bitta nusxani ishga tushiring.** Ikkinchi marta ishga tushirsangiz,
+> `main.py` portni band ko'rib, aniq xato bilan to'xtaydi (webhook'ni
+> buzmaydi) — ikkinchi nusxani boshlamang, avval birinchisini to'xtating.
+
+### Testlar va kod sifati
 
 ```bash
-docker compose up --build
+pytest -v
+bandit -r app -ll
+ruff check app tests
+```
+
+## Docker bilan ishga tushirish (ixtiyoriy, production uchun)
+
+Loyiha Docker Compose orqali ham ishga tushadi (baseline-10 talabi uchun
+tayyor, lekin kundalik mahalliy ishlatish uchun shart emas):
+
+```bash
+docker compose build bot   # Dockerfile to'g'ri ishlashini tekshiradi
+docker compose up --build  # to'liq (nginx + bot), deploy/certs/ ichida TLS kerak
 ```
 
 ## Xavfsizlik bazasi (qisqacha)
@@ -73,7 +103,8 @@ sirlari git tarixidan tashqarida, admin faqat Telegram user ID bo'yicha,
 parametrlashtirilgan SQL, `eval`/`exec`/`shell=True` yo'q, har bir
 cryptanalysis job alohida izolyatsiya qilingan subprocessda CPU/vaqt/xotira
 limiti bilan ishlaydi (`app/worker/run_job.py`), webhook `secret_token` bilan
-tasdiqlanadi, konteynerlar non-root + read-only FS.
+tasdiqlanadi, shaxsiy wordlist generatori kiritilgan ma'lumotni bazaga
+saqlamaydi.
 
 ## Loyiha tuzilishi
 
@@ -81,8 +112,14 @@ tasdiqlanadi, konteynerlar non-root + read-only FS.
 app/
   core/        — sof Python cryptanalysis "engine" (Telegram'dan mustaqil, test qilingan)
   worker/      — izolyatsiyalangan subprocess runner (CPU/vaqt/xotira limiti)
-  bot/         — aiogram 3 webhook handlerlar, DB, rate-limit, admin
+  bot/         — aiogram 3 webhook handlerlar, i18n, DB, rate-limit, admin
+    i18n.py        — barcha matnlar (uz/ru/en)
+    handlers.py    — buyruqlar va tugma oqimlari
+    formatting.py  — xabar shablonlari
+    keyboards.py   — inline tugmalar
+    webapp/        — Mini App (vizual decode natijasi)
 docs/          — design doc, threat model
 deploy/        — nginx config, TLS sertifikatlar (gitignored)
-tests/         — pytest (core: 15 test, bot: 3 test)
+scripts/       — quadgram statistikasini qurish skripti
+tests/         — pytest (52 test)
 ```
