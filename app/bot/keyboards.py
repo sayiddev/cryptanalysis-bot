@@ -79,7 +79,14 @@ def _rows_of_two(buttons: list[tuple[str, str]], style: str | None) -> list[list
 
 
 def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_category_buttons(lang), "primary")
+    # "Decode" opens the cipher-breaking submenu (buzish) — red. Everything
+    # else (opening/unwrapping encodings, analysis, utilities) stays blue.
+    styles = {"menu:decode_break": "danger"}
+    categories = [(text, data, styles.get(data, "primary")) for text, data in _category_buttons(lang)]
+    rows = [
+        [_btn(text, data, style) for text, data, style in categories[i : i + 2]]
+        for i in range(0, len(categories), 2)
+    ]
     rows.append(
         [
             _btn(label(lang, "language"), "menu:language"),
@@ -90,7 +97,8 @@ def main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 
 def decode_break_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    rows = _rows_of_two(_decode_break_buttons(lang), "primary")
+    # These are the actual cipher-breaking actions (buzish) — red.
+    rows = _rows_of_two(_decode_break_buttons(lang), "danger")
     rows.append([_btn(label(lang, "menu"), "menu:main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
