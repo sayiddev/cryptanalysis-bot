@@ -486,14 +486,9 @@ _ACTIONS = {
 @router.message(Command("start"))
 async def handle_start(message: Message, state: FSMContext) -> None:
     await state.clear()
-    is_new = await db.get_or_create_user(message.from_user.id)
-    if is_new:
-        await message.reply(
-            formatting.language_picker_text("uz"), reply_markup=language_picker_keyboard()
-        )
-        return
+    await db.get_or_create_user(message.from_user.id)
     lang = await _lang_for(message.from_user.id)
-    await message.reply(formatting.welcome_text(lang), reply_markup=main_menu_keyboard(lang))
+    await message.reply(formatting.language_picker_text(lang), reply_markup=language_picker_keyboard())
 
 
 @router.message(Command("language"))
